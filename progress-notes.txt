@@ -23,4 +23,8 @@ Using this to track what I have done in case I ever want to write something abou
         - No more static resource IDs
         - Can now generate IDs
         - I bet the initial connection's length specification is even right...
-    
+    - Read about how deadlocking can occur if you are not constantly reading messages from the X Server
+        - Create a new thread that constantly reads messages from the X Server and forwards them to the main thread
+    - Work on implementing replies
+        - Track sequence number
+        - TODO: Continue this!
