@@ -1,0 +1,7 @@
+[package]
+name = "xcb"
+version = "0.1.0"
+authors = ["Nelson Schramm <nelson@nschramm.com>"]
+
+[dependencies]
+bufstream = "0.1.3"

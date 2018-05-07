@@ -1,0 +1,16 @@
+Go to Connection Setup and ctrl+F Connection Setup
+
+Xephyr: Xephyr -ac -screen 1280x1024 -br -reset -terminate :1
+
+xtrace: DISPLAY=:1 xtrace -n -d :1
+Xephyr+xtrace (connect on :9): Xephyr -ac -screen 1280x1024 -br -reset -terminate :1 & DISPLAY=:1 xtrace -n -d :1
+
+#socat: socat -t1000 -x -v UNIX-LISTEN:/tmp/.X11-unix/X9,mode=777,reuseaddr,fork UNIX-CONNECT:/tmp/.X11-unix/X1
+#Xephyr+socat: Xephyr -ac -screen 1280x1024 -br -reset -terminate :1 & socat -t1000 -x -v UNIX-LISTEN:/tmp/.X11-unix/X9,mode=777,reuseaddr,fork UNIX-CONNECT:/tmp/.X11-unix/X1
+Dumping data: ./dump_unix.sh
+Xephyr+Dumping data: Xephyr -ac -screen 1280x1024 -br -reset -terminate :1 & ./dump_unix.sh
+
+
+NOTE: Swap Xephyr's -br with -wr to get a white background instead
+
+Note: cargo test -- --nocapture

@@ -1,0 +1,26 @@
+Using this to track what I have done in case I ever want to write something about it later.
+
+- Use a ton of the Rust book: https://doc.rust-lang.org/book/second-edition/
+- Use a ton of the X11 Protocol Spec: https://www.x.org/releases/X11R7.7/doc/xproto/x11protocol.html
+- Spend a long time trying to figure out why "length in 4-byte units of 'additional data'" isn't correct, unless I fucked up (under "Information received by the client if the connection is accepted: ")
+    - Eventually just ignore this property and dynamically read the input depending on the count of the properties and not a fixed length
+    - Use StreamBuf to do this with lower overhead
+- Use a bunch of Regex in Sublime Text (ie ([a-z])([A-Z])) to swap the opcodes from https://cgit.freedesktop.org/xorg/proto/xproto/tree/Xproto.h to CONSTANT_CASE
+- Start working on the CreateWindow request. So many structures :(
+    - Kept on getting error 14 IDChoice, so I got python-xlib and compared its xtrace to mine
+    - I made them look exactly the same and still got errors. I think xtrace was leaving out some details
+    - Use https://gist.github.com/jhass/5896418 to capture the traffic
+    - Load into wireshark
+        - Right Click -> Decode As... -> X11
+    - Requests to create the window are the same... I think its because I am not creating some of the other resources, so let's get on that
+    - Finally realize how values work... I was trying to use them like normal data instead of following the mask.
+        - Learn about traits, and start using them (and make plans to use them with old stuff)
+    - Properly implemented stuff. Fixed another place where I was using write_pad(0), aka writing 0 bytes of padding, and added a panic! if you try to write 0 bytes of padding.
+    - DISPLAYED A FUCKING WINDOW LETS GO WOOOOO
+        - Note: To get this working I have some resource IDs, like the ID of the window I create, statically set.
+    - Fixed an issue where I was using >> to read in little endian for u16 and u32 when I should have been using <<
+        - Wow, everything now haha
+        - No more static resource IDs
+        - Can now generate IDs
+        - I bet the initial connection's length specification is even right...
+    
