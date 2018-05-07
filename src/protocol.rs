@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+// TODO: Re-enable the lint once this is fully used
+
 // Connection request
 pub const CONNECT_LSB: u8 = 0x6C; // Intel x86, AMD64/x86-64
 pub const CONNECT_MSB: u8 = 0x42; // Others
