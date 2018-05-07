@@ -2,9 +2,10 @@
 Pure Rust bindings for X11 protocol.
 
 # WIP NOTICE
-This is still a work in progress. 
+This is still a work in progress, and things may not work. Feel free to submit suggestions, issues, or any other types of feedback though!
 
 # Usage
+See tests/main.rs for some example usage.
 1. Do initial setup (create windows, subscribe to events, etc)
 2. Run an event loop using client.wait_for_message()
     - Responds with replies, errors, and events
