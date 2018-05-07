@@ -70,14 +70,14 @@ mod tests {
         // Main event loop
         loop {
             match client.wait_for_message() {
-                ServerResponse::Error(error) => {
-                    println!("Got error: {:?}", error);
+                ServerResponse::Error(error, sequence_number) => {
+                    println!("Got error {}: {:?}", sequence_number, error);
                 },
-                ServerResponse::Reply(reply) => {
-                    println!("Got reply: {:?}", reply);
+                ServerResponse::Reply(reply, sequence_number) => {
+                    println!("Got reply {}: {:?}", sequence_number, reply);
                 },
-                ServerResponse::Event(event) => {
-                    println!("Got event: {:?}", event);
+                ServerResponse::Event(event, sequence_number) => {
+                    println!("Got event {}: {:?}", sequence_number, event);
                 }
             }
         }
