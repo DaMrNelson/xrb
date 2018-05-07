@@ -1,0 +1,6 @@
+
+/target
+**/*.rs.bk
+libxcb
+python-xlib
+py-xlib-test
