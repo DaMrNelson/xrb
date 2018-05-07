@@ -1,10 +1,10 @@
-extern crate xcb;
+extern crate xrb;
 
 // Tests
 #[cfg(test)]
 mod tests {
-    use xcb::XClient;
-    use xcb::models::*;
+    use xrb::XClient;
+    use xrb::models::*;
 
     #[test]
     fn main_test() {
