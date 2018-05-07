@@ -4,6 +4,12 @@ Pure Rust bindings for X11 protocol.
 # WIP NOTICE
 This is still a work in progress, and things may not work. Feel free to submit suggestions, issues, or any other types of feedback though!
 
+# So what's done?
+- Connect with no auth
+- Create and map a window with a pixmap and graphics context
+- Subscribe to events
+- Get events and errors from the X Server (no replies yet)
+
 # Usage
 See tests/main.rs for some example usage.
 1. Do initial setup (create windows, subscribe to events, etc)
