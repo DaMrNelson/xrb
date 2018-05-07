@@ -136,7 +136,7 @@ pub const OP_NO_OPERATION: u8 = 127;
 
 // Reply opcodes
 pub const REPLY_ERROR: u8 = 0;
-// TODO: What goes here?
+pub const REPLY_REPLY: u8 = 1;
 pub const REPLY_KEY_PRESS: u8 = 2;
 pub const REPLY_KEY_RELEASE: u8 = 3;
 pub const REPLY_BUTTON_PRESS: u8 = 4;
