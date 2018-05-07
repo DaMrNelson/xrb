@@ -206,7 +206,7 @@ impl XClient {
                     }
                 },
                 protocol::REPLY_REPLY => ServerResponse::Reply({
-                    // TODO: Parse different types of replies. How do dat? Idfk
+                    panic!("Server replies not implemented yet.") // TODO: Parse different types of replies. How do dat? Idfk
                 }),
                 other => ServerResponse::Event(
                     match match other { // MY EYES

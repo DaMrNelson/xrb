@@ -260,7 +260,7 @@ pub enum ServerError {
 }
 
 #[derive(Debug)]
-pub enum SeverReply {
+pub enum ServerReply {
     // TDOO: These
 }
 
