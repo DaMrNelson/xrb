@@ -10,6 +10,12 @@ This is still a work in progress, and things may not work. Feel free to submit s
 - Subscribe to events
 - Get events and errors from the X Server (no replies yet)
 
+# How Does It Work?
+- Connection is all async
+- A listener thread is spawned that reads messages from the server forever
+    - This prevents deadlocking, since (by the spec) the X Server MAY not accept a new message until it has sent the reply to previous one
+- All write operations are done on the main thread
+
 # Usage
 See tests/main.rs for some example usage.
 1. Do initial setup (create windows, subscribe to events, etc)
