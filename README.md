@@ -1,5 +1,8 @@
-# XCB
-Rust bindings for X11 protocol.
+# X Rust Bindings, aka XRB
+Pure Rust bindings for X11 protocol.
+
+# WIP NOTICE
+This is still a work in progress. 
 
 # Usage
 1. Do initial setup (create windows, subscribe to events, etc)
