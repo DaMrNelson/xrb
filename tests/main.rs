@@ -73,6 +73,9 @@ mod tests {
                 ServerResponse::Error(error) => {
                     println!("Got error: {:?}", error);
                 },
+                ServerResponse::Reply(reply) => {
+                    println!("Got reply: {:?}", reply);
+                },
                 ServerResponse::Event(event) => {
                     println!("Got event: {:?}", event);
                 }
