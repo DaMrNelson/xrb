@@ -240,23 +240,23 @@ impl Visual {
 
 #[derive(Debug)]
 pub enum ServerError {
-    Request { sequence_number: u16, minor_opcode: u16, major_opcode: u8 },
-    Value { sequence_number: u16, minor_opcode: u16, major_opcode: u8, bad_value: u32 },
-    Window { sequence_number: u16, minor_opcode: u16, major_opcode: u8, bad_resource_id: u32, },
-    Pixmap { sequence_number: u16, minor_opcode: u16, major_opcode: u8, bad_resource_id: u32 },
-    Atom { sequence_number: u16, minor_opcode: u16, major_opcode: u8, bad_atom_id: u32 },
-    Cursor { sequence_number: u16, minor_opcode: u16, major_opcode: u8, bad_resource_id: u32 },
-    Font { sequence_number: u16, minor_opcode: u16, major_opcode: u8, bad_resource_id: u32 },
-    Match { sequence_number: u16, minor_opcode: u16, major_opcode: u8 },
-    Drawable { sequence_number: u16, minor_opcode: u16, major_opcode: u8, bad_resource_id: u32 },
-    Access { sequence_number: u16, minor_opcode: u16, major_opcode: u8 },
-    Alloc { sequence_number: u16, minor_opcode: u16, major_opcode: u8 },
-    Colormap { sequence_number: u16, minor_opcode: u16, major_opcode: u8, bad_resource_id: u32 },
-    GContext { sequence_number: u16, minor_opcode: u16, major_opcode: u8, bad_resource_id: u32 },
-    IDChoice { sequence_number: u16, minor_opcode: u16, major_opcode: u8, bad_resource_id: u32 },
-    Name { sequence_number: u16, minor_opcode: u16, major_opcode: u8 },
-    Length { sequence_number: u16, minor_opcode: u16, major_opcode: u8 },
-    Implementation { sequence_number: u16, minor_opcode: u16, major_opcode: u8 }
+    Request { minor_opcode: u16, major_opcode: u8 },
+    Value { minor_opcode: u16, major_opcode: u8, bad_value: u32 },
+    Window { minor_opcode: u16, major_opcode: u8, bad_resource_id: u32, },
+    Pixmap { minor_opcode: u16, major_opcode: u8, bad_resource_id: u32 },
+    Atom { minor_opcode: u16, major_opcode: u8, bad_atom_id: u32 },
+    Cursor { minor_opcode: u16, major_opcode: u8, bad_resource_id: u32 },
+    Font { minor_opcode: u16, major_opcode: u8, bad_resource_id: u32 },
+    Match { minor_opcode: u16, major_opcode: u8 },
+    Drawable { minor_opcode: u16, major_opcode: u8, bad_resource_id: u32 },
+    Access { minor_opcode: u16, major_opcode: u8 },
+    Alloc { minor_opcode: u16, major_opcode: u8 },
+    Colormap { minor_opcode: u16, major_opcode: u8, bad_resource_id: u32 },
+    GContext { minor_opcode: u16, major_opcode: u8, bad_resource_id: u32 },
+    IDChoice { minor_opcode: u16, major_opcode: u8, bad_resource_id: u32 },
+    Name { minor_opcode: u16, major_opcode: u8 },
+    Length { minor_opcode: u16, major_opcode: u8 },
+    Implementation { minor_opcode: u16, major_opcode: u8 }
 }
 
 #[derive(Debug)]
@@ -268,7 +268,6 @@ pub enum ServerReply {
 pub enum ServerEvent {
     KeyPress {
         key_code: u8,
-        sequence_number: u16,
         time: u32,
         root: u32,
         event: u32,
@@ -282,7 +281,6 @@ pub enum ServerEvent {
     },
     KeyRelease {
         key_code: u8,
-        sequence_number: u16,
         time: u32,
         root: u32,
         event: u32,
@@ -296,7 +294,6 @@ pub enum ServerEvent {
     },
     ButtonPress {
         button: u8,
-        sequence_number: u16,
         time: u32,
         root: u32,
         event: u32,
@@ -310,7 +307,6 @@ pub enum ServerEvent {
     },
     ButtonRelease {
         button: u8,
-        sequence_number: u16,
         time: u32,
         root: u32,
         event: u32,
@@ -324,7 +320,6 @@ pub enum ServerEvent {
     },
     MotionNotify {
         detail: MotionNotifyType,
-        sequence_number: u16,
         time: u32,
         root: u32,
         event: u32,
@@ -338,7 +333,6 @@ pub enum ServerEvent {
     },
     EnterNotify {
         detail: NotifyType,
-        sequence_number: u16,
         time: u32,
         root: u32,
         event: u32,
@@ -354,7 +348,6 @@ pub enum ServerEvent {
     },
     LeaveNotify {
         detail: NotifyType,
-        sequence_number: u16,
         time: u32,
         root: u32,
         event: u32,
@@ -370,13 +363,11 @@ pub enum ServerEvent {
     },
     FocusIn {
         detail: FocusType,
-        sequence_number: u16,
         event: u32,
         mode: FocusMode
     },
     FocusOut {
         detail: FocusType,
-        sequence_number: u16,
         event: u32,
         mode: FocusMode
     },
@@ -384,7 +375,6 @@ pub enum ServerEvent {
         // TODO: Implement it
     },
     Expose {
-        sequence_number: u16,
         window: u32,
         x: u16,
         y: u16,
@@ -393,7 +383,6 @@ pub enum ServerEvent {
         count: u16
     },
     GraphicsExposure {
-        sequence_number: u16,
         drawable: u32,
         x: u16,
         y: u16,
@@ -404,18 +393,15 @@ pub enum ServerEvent {
         major_opcode: u8
     },
     NoExposure {
-        sequence_number: u16,
         drawable: u32,
         minor_opcode: u16,
         major_opcode: u8
     },
     VisibilityNotify {
-        sequence_number: u16,
         window: u32,
         state: VisibilityState
     },
     CreateNotify {
-        sequence_number: u16,
         parent: u32,
         window: u32,
         x: i16,
@@ -426,29 +412,24 @@ pub enum ServerEvent {
         override_redirect: bool
     },
     DestroyNotify {
-        sequence_number: u16,
         event: u32,
         window: u32
     },
     UnmapNotify {
-        sequence_number: u16,
         event: u32,
         window: u32,
         from_configure: bool
     },
     MapNotify {
-        sequence_number: u16,
         event: u32,
         window: u32,
         override_redirect: bool
     },
     MapRequest {
-        sequence_number: u16,
         parent: u32,
         window: u32
     },
     ReparentNotify {
-        sequence_number: u16,
         event: u32,
         window: u32,
         parent: u32,
@@ -457,7 +438,6 @@ pub enum ServerEvent {
         override_redirect: bool
     },
     ConfigureNotify {
-        sequence_number: u16,
         event: u32,
         window: u32,
         above_sibling: u32,
@@ -470,7 +450,6 @@ pub enum ServerEvent {
     },
     ConfigureRequest {
         stack_mode: StackMode,
-        sequence_number: u16,
         parent: u32,
         window: u32,
         sibling: u32,
@@ -482,45 +461,38 @@ pub enum ServerEvent {
         values: Vec<ConfigureRequestValues>
     },
     GravityNotify {
-        sequence_number: u16,
         event: u32,
         window: u32,
         x: i16,
         y: i16
     },
     ResizeRequest {
-        sequence_number: u16,
         window: u32,
         width: u16,
         height: u16
     },
     CirculateNotify {
-        sequence_number: u16,
         event: u32,
         window: u32,
         place: CirculatePlace
     },
     CirculateRequest {
-        sequence_number: u16,
         parent: u32,
         window: u32,
         place: CirculatePlace
     },
     PropertyNotify {
-        sequence_number: u16,
         window: u32,
         atom: u32,
         time: u32,
         state: PropertyState
     },
     SelectionClear {
-        sequence_number: u16,
         time: u32,
         owner: u32,
         selection: u32
     },
     SelectionRequest {
-        sequence_number: u16,
         time: u32,
         owner: u32,
         requestor: u32,
@@ -529,7 +501,6 @@ pub enum ServerEvent {
         property: u32
     },
     SelectionNotify {
-        sequence_number: u16,
         time: u32,
         requestor: u32,
         selection: u32,
@@ -537,7 +508,6 @@ pub enum ServerEvent {
         property: u32
     },
     ColormapNotify {
-        sequence_number: u16,
         window: u32,
         colormap: u32,
         new: bool,
@@ -545,12 +515,10 @@ pub enum ServerEvent {
     },
     ClientMessage {
         format: u8,
-        sequence_number: u16,
         window: u32,
         mtype: u32
     },
     MappingNotify {
-        sequence_number: u16,
         request: MappingType,
         first_keycode: char,
         count: u8
@@ -559,9 +527,9 @@ pub enum ServerEvent {
 }
 
 pub enum ServerResponse {
-    Error(ServerError),
-    Reply(ServerReply),
-    Event(ServerEvent)
+    Error(ServerError, u16),
+    Reply(ServerReply, u16),
+    Event(ServerEvent, u16)
 }
 
 

@@ -1,7 +1,7 @@
 use models::*;
 
 pub trait XBufferedWriter {
-    fn write_flush(&mut self);
+    fn write_sequence(&mut self) -> u16;
     fn write_pad(&mut self, len: usize);
     fn write_bool(&mut self, input: bool);
     fn write_u8(&mut self, input: u8);

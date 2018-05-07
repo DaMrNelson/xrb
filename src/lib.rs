@@ -14,6 +14,7 @@ use self::xwriter::XBufferedWriter;
 pub struct XClient {
     pub connected: bool,
     pub connect_info: ConnectInfo,
+    pub current_sequence: u16,
     buf: BufStream<UnixStream>,
     buf_one_byte: Vec<u8>,
     buf_two_byte: Vec<u8>,
@@ -27,6 +28,7 @@ impl XClient {
         XClient {
             connected: false,
             connect_info: ConnectInfo::empty(),
+            current_sequence: 0,
             buf: BufStream::new(stream),
             buf_one_byte: vec![0u8; 1],
             buf_two_byte: vec![0u8; 2],
@@ -49,7 +51,8 @@ impl XClient {
             //self.write_pad(4); // Pad empty string
             self.write_pad(1); // Pad empty string
             self.write_pad(1); // Pad empty string
-            self.write_flush();
+
+            self.write_sequence();
         }
 
         // Read response header
@@ -200,55 +203,55 @@ impl XClient {
 
             return match opcode {
                 protocol::REPLY_ERROR => {
-                    match self.read_error(detail, sequence_number) {
-                        Some(err) => ServerResponse::Error(err),
+                    match self.read_error(detail) {
+                        Some(err) => ServerResponse::Error(err, sequence_number),
                         None => continue
                     }
                 },
                 protocol::REPLY_REPLY => ServerResponse::Reply({
                     panic!("Server replies not implemented yet.") // TODO: Parse different types of replies. How do dat? Idfk
-                }),
+                }, sequence_number),
                 other => ServerResponse::Event(
                     match match other { // MY EYES
-                        protocol::REPLY_KEY_PRESS => self.read_key_press(detail, sequence_number),
-                        protocol::REPLY_KEY_RELEASE => self.read_key_release(detail, sequence_number),
-                        protocol::REPLY_BUTTON_PRESS => self.read_button_press(detail, sequence_number),
-                        protocol::REPLY_BUTTON_RELEASE => self.read_button_release(detail, sequence_number),
-                        protocol::REPLY_MOTION_NOTIFY => self.read_motion_notify(detail, sequence_number),
-                        protocol::REPLY_ENTER_NOTIFY => self.read_enter_notify(detail, sequence_number),
-                        protocol::REPLY_LEAVE_NOTIFY => self.read_leave_notify(detail, sequence_number),
-                        protocol::REPLY_FOCUS_IN => self.read_focus_in(detail, sequence_number),
-                        protocol::REPLY_FOCUS_OUT => self.read_focus_out(detail, sequence_number),
-                        protocol::REPLY_KEYMAP_NOTIFY => self.read_keymap_notify(detail, sequence_number),
-                        protocol::REPLY_EXPOSE => self.read_expose(sequence_number),
-                        protocol::REPLY_GRAPHICS_EXPOSURE => self.read_graphics_exposure(sequence_number),
-                        protocol::REPLY_NO_EXPOSURE => self.read_no_exposure(sequence_number),
-                        protocol::REPLY_VISIBILITY_NOTIFY => self.read_visibility_notify(sequence_number),
-                        protocol::REPLY_CREATE_NOTIFY => self.read_create_notify(sequence_number),
-                        protocol::REPLY_DESTROY_NOTIFY => self.read_destroy_notify(sequence_number),
-                        protocol::REPLY_UNMAP_NOTIFY => self.read_unmap_notify(sequence_number),
-                        protocol::REPLY_MAP_NOTIFY => self.read_map_notify(sequence_number),
-                        protocol::REPLY_MAP_REQUEST => self.read_map_request(sequence_number),
-                        protocol::REPLY_REPART_NOTIFY => self.read_reparent_notify(sequence_number),
-                        protocol::REPLY_CONFIGURE_NOTIFY => self.read_configure_notify(sequence_number),
-                        protocol::REPLY_CONFIGURE_REQUEST => self.read_configure_request(detail, sequence_number),
-                        protocol::REPLY_GRAVITY_NOTIFY => self.read_gravity_notify(sequence_number),
-                        protocol::REPLY_RESIZE_REQUEST => self.read_resize_request(sequence_number),
-                        protocol::REPLY_CIRCULATE_NOTIFY => self.read_circulate_notify(sequence_number),
-                        protocol::REPLY_CIRCULATE_REQUEST => self.read_circulate_request(sequence_number),
-                        protocol::REPLY_PROPERTY_NOTIFY => self.read_property_notify(sequence_number),
-                        protocol::REPLY_SELECTION_CLEAR => self.read_selection_clear(sequence_number),
-                        protocol::REPLY_SELECTION_REQUEST => self.read_selection_request(sequence_number),
-                        protocol::REPLY_SELECTION_NOTIFY => self.read_selection_notify(sequence_number),
-                        protocol::REPLY_COLORMAP_NOTIFY => self.read_colormap_notify(sequence_number),
-                        protocol::REPLY_CLIENT_MESSAGE => self.read_client_message(detail, sequence_number),
-                        protocol::REPLY_MAPPING_NOTIFY => self.read_mapping_notify(sequence_number),
+                        protocol::REPLY_KEY_PRESS => self.read_key_press(detail),
+                        protocol::REPLY_KEY_RELEASE => self.read_key_release(detail),
+                        protocol::REPLY_BUTTON_PRESS => self.read_button_press(detail),
+                        protocol::REPLY_BUTTON_RELEASE => self.read_button_release(detail),
+                        protocol::REPLY_MOTION_NOTIFY => self.read_motion_notify(detail),
+                        protocol::REPLY_ENTER_NOTIFY => self.read_enter_notify(detail),
+                        protocol::REPLY_LEAVE_NOTIFY => self.read_leave_notify(detail),
+                        protocol::REPLY_FOCUS_IN => self.read_focus_in(detail),
+                        protocol::REPLY_FOCUS_OUT => self.read_focus_out(detail),
+                        protocol::REPLY_KEYMAP_NOTIFY => self.read_keymap_notify(detail),
+                        protocol::REPLY_EXPOSE => self.read_expose(),
+                        protocol::REPLY_GRAPHICS_EXPOSURE => self.read_graphics_exposure(),
+                        protocol::REPLY_NO_EXPOSURE => self.read_no_exposure(),
+                        protocol::REPLY_VISIBILITY_NOTIFY => self.read_visibility_notify(),
+                        protocol::REPLY_CREATE_NOTIFY => self.read_create_notify(),
+                        protocol::REPLY_DESTROY_NOTIFY => self.read_destroy_notify(),
+                        protocol::REPLY_UNMAP_NOTIFY => self.read_unmap_notify(),
+                        protocol::REPLY_MAP_NOTIFY => self.read_map_notify(),
+                        protocol::REPLY_MAP_REQUEST => self.read_map_request(),
+                        protocol::REPLY_REPART_NOTIFY => self.read_reparent_notify(),
+                        protocol::REPLY_CONFIGURE_NOTIFY => self.read_configure_notify(),
+                        protocol::REPLY_CONFIGURE_REQUEST => self.read_configure_request(detail),
+                        protocol::REPLY_GRAVITY_NOTIFY => self.read_gravity_notify(),
+                        protocol::REPLY_RESIZE_REQUEST => self.read_resize_request(),
+                        protocol::REPLY_CIRCULATE_NOTIFY => self.read_circulate_notify(),
+                        protocol::REPLY_CIRCULATE_REQUEST => self.read_circulate_request(),
+                        protocol::REPLY_PROPERTY_NOTIFY => self.read_property_notify(),
+                        protocol::REPLY_SELECTION_CLEAR => self.read_selection_clear(),
+                        protocol::REPLY_SELECTION_REQUEST => self.read_selection_request(),
+                        protocol::REPLY_SELECTION_NOTIFY => self.read_selection_notify(),
+                        protocol::REPLY_COLORMAP_NOTIFY => self.read_colormap_notify(),
+                        protocol::REPLY_CLIENT_MESSAGE => self.read_client_message(detail),
+                        protocol::REPLY_MAPPING_NOTIFY => self.read_mapping_notify(),
                         _ => continue
                     } {
                         Some(event) => event,
                         None => continue
                     }
-                )
+                , sequence_number)
             }
         }
     }
@@ -256,7 +259,7 @@ impl XClient {
 
 impl XClient { // This is actually a pretty nice feature for organization
     /** Tells the X Server to create a window */
-    pub fn create_window(&mut self, window: &Window) {
+    pub fn create_window(&mut self, window: &Window) -> u16 {
         // Should be 28 not including values and their mask
         self.write_u8(protocol::OP_CREATE_WINDOW);
         self.write_u8(window.depth);
@@ -276,11 +279,11 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u32(window.visual_id);
         self.write_values(&window.values);
 
-        self.write_flush();
+        self.write_sequence()
     }
 
     /** Tells the X Server to change a window's attributes */
-    pub fn change_window_attributes(&mut self, wid: u32, values: &Vec<WindowValue>) {
+    pub fn change_window_attributes(&mut self, wid: u32, values: &Vec<WindowValue>) -> u16 {
         // Should be 28 not including values and their mask
         self.write_u8(protocol::OP_CHANGE_WINDOW_ATTRIBUTES);
         self.write_pad(1);
@@ -288,31 +291,31 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u32(wid);
         self.write_values(&values);
 
-        self.write_flush();
+        self.write_sequence()
     }
 
     /** Tells the X Server to send us the window's attributes */
-    pub fn get_window_attributes(&mut self, wid: u32) {
+    pub fn get_window_attributes(&mut self, wid: u32) -> u16 {
         self.write_u8(protocol::OP_GET_WINDOW_ATTRIBUTES);
         self.write_pad(1);
         self.write_u16(2);
         self.write_u32(wid);
 
-        self.write_flush();
+        self.write_sequence()
     }
 
     /** Tells the X Server to map a window (makes it visible I think) */
-    pub fn map_window(&mut self, window: u32) {
+    pub fn map_window(&mut self, window: u32) -> u16 {
         self.write_u8(protocol::OP_MAP_WINDOW);
         self.write_pad(1);
         self.write_u16(2);
         self.write_u32(window);
 
-        self.write_flush();
+        self.write_sequence()
     }
 
     /** Tells the X Server to create a pixmap */
-    pub fn create_pixmap(&mut self, pixmap: Pixmap) {
+    pub fn create_pixmap(&mut self, pixmap: Pixmap) -> u16 {
         self.write_u8(protocol::OP_CREATE_PIXMAP);
         self.write_u8(pixmap.depth);
         self.write_u16(4); // Request length
@@ -321,11 +324,11 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u16(pixmap.width);
         self.write_u16(pixmap.height);
 
-        self.write_flush();
+        self.write_sequence()
     }
 
     /** Tells the X Server to create a graphics context */
-    pub fn create_gc(&mut self, gc: GraphicsContext) {
+    pub fn create_gc(&mut self, gc: GraphicsContext) -> u16 {
         self.write_u8(protocol::OP_CREATE_GC);
         self.write_pad(1);
         self.write_u16(4 + gc.values.len() as u16);
@@ -333,36 +336,36 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u32(gc.drawable);
         self.write_values(&gc.values);
 
-        self.write_flush();
+        self.write_sequence()
     }
 }
 
 impl XClient {
     /** Reads an error from the server (assumes first byte read) */
-    fn read_error(&mut self, code: u8, sequence_number: u16) -> Option<ServerError> {
+    fn read_error(&mut self, code: u8) -> Option<ServerError> {
         let info = self.read_u32(); // Always u32 or unused
         let minor_opcode = self.read_u16();
         let major_opcode = self.read_u8();
         self.read_pad(21);
 
         match code {
-            protocol::ERROR_REQUEST => Some(ServerError::Request { sequence_number, minor_opcode, major_opcode }),
-            protocol::ERROR_VALUE => Some(ServerError::Value { sequence_number, minor_opcode, major_opcode, bad_value: info }),
-            protocol::ERROR_WINDOW => Some(ServerError::Window { sequence_number, minor_opcode, major_opcode, bad_resource_id: info }),
-            protocol::ERROR_PIXMAP => Some(ServerError::Pixmap { sequence_number, minor_opcode, major_opcode, bad_resource_id: info }),
-            protocol::ERROR_ATOM => Some(ServerError::Atom { sequence_number, minor_opcode, major_opcode, bad_atom_id: info }),
-            protocol::ERROR_CURSOR => Some(ServerError::Cursor { sequence_number, minor_opcode, major_opcode, bad_resource_id: info }),
-            protocol::ERROR_FONT => Some(ServerError::Font { sequence_number, minor_opcode, major_opcode, bad_resource_id: info }),
-            protocol::ERROR_MATCH => Some(ServerError::Match { sequence_number, minor_opcode, major_opcode }),
-            protocol::ERROR_DRAWABLE => Some(ServerError::Drawable { sequence_number, minor_opcode, major_opcode, bad_resource_id: info }),
-            protocol::ERROR_ACCESS => Some(ServerError::Access { sequence_number, minor_opcode, major_opcode }),
-            protocol::ERROR_ALLOC => Some(ServerError::Alloc { sequence_number, minor_opcode, major_opcode }),
-            protocol::ERROR_COLORMAP => Some(ServerError::Colormap { sequence_number, minor_opcode, major_opcode, bad_resource_id: info }),
-            protocol::ERROR_G_CONTEXT => Some(ServerError::GContext { sequence_number, minor_opcode, major_opcode, bad_resource_id: info }),
-            protocol::ERROR_ID_CHOICE => Some(ServerError::IDChoice { sequence_number, minor_opcode, major_opcode, bad_resource_id: info }),
-            protocol::ERROR_NAME => Some(ServerError::Name { sequence_number, minor_opcode, major_opcode }),
-            protocol::ERROR_LENGTH => Some(ServerError::Length { sequence_number, minor_opcode, major_opcode }),
-            protocol::ERROR_IMPLEMENTATION => Some(ServerError::Implementation { sequence_number, minor_opcode, major_opcode }),
+            protocol::ERROR_REQUEST => Some(ServerError::Request { minor_opcode, major_opcode }),
+            protocol::ERROR_VALUE => Some(ServerError::Value { minor_opcode, major_opcode, bad_value: info }),
+            protocol::ERROR_WINDOW => Some(ServerError::Window { minor_opcode, major_opcode, bad_resource_id: info }),
+            protocol::ERROR_PIXMAP => Some(ServerError::Pixmap { minor_opcode, major_opcode, bad_resource_id: info }),
+            protocol::ERROR_ATOM => Some(ServerError::Atom { minor_opcode, major_opcode, bad_atom_id: info }),
+            protocol::ERROR_CURSOR => Some(ServerError::Cursor { minor_opcode, major_opcode, bad_resource_id: info }),
+            protocol::ERROR_FONT => Some(ServerError::Font { minor_opcode, major_opcode, bad_resource_id: info }),
+            protocol::ERROR_MATCH => Some(ServerError::Match { minor_opcode, major_opcode }),
+            protocol::ERROR_DRAWABLE => Some(ServerError::Drawable { minor_opcode, major_opcode, bad_resource_id: info }),
+            protocol::ERROR_ACCESS => Some(ServerError::Access { minor_opcode, major_opcode }),
+            protocol::ERROR_ALLOC => Some(ServerError::Alloc { minor_opcode, major_opcode }),
+            protocol::ERROR_COLORMAP => Some(ServerError::Colormap { minor_opcode, major_opcode, bad_resource_id: info }),
+            protocol::ERROR_G_CONTEXT => Some(ServerError::GContext { minor_opcode, major_opcode, bad_resource_id: info }),
+            protocol::ERROR_ID_CHOICE => Some(ServerError::IDChoice { minor_opcode, major_opcode, bad_resource_id: info }),
+            protocol::ERROR_NAME => Some(ServerError::Name { minor_opcode, major_opcode }),
+            protocol::ERROR_LENGTH => Some(ServerError::Length { minor_opcode, major_opcode }),
+            protocol::ERROR_IMPLEMENTATION => Some(ServerError::Implementation { minor_opcode, major_opcode }),
             _ => None
         }
     }
@@ -415,39 +418,39 @@ impl XClient {
     }
 
     /** Reads a key press from the server (assumes first byte read) */
-    fn read_key_press(&mut self, key_code: u8, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_key_press(&mut self, key_code: u8) -> Option<ServerEvent> {
         let (time, root, event, child, root_x, root_y, event_x, event_y, state_pre, same_screen, _)
             = self.read_pointer_event();
         let state = KeyButton::get(state_pre);
-        Some(ServerEvent::KeyPress { key_code, sequence_number, time, root, event, child, root_x, root_y, event_x, event_y, state, same_screen })
+        Some(ServerEvent::KeyPress { key_code, time, root, event, child, root_x, root_y, event_x, event_y, state, same_screen })
     }
 
     /** Reads a key release from the server (assumes first byte read) */
-    fn read_key_release(&mut self, key_code: u8, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_key_release(&mut self, key_code: u8) -> Option<ServerEvent> {
         let (time, root, event, child, root_x, root_y, event_x, event_y, state_pre, same_screen, _)
             = self.read_pointer_event();
         let state = KeyButton::get(state_pre);
-        Some(ServerEvent::KeyRelease { key_code, sequence_number, time, root, event, child, root_x, root_y, event_x, event_y, state, same_screen })
+        Some(ServerEvent::KeyRelease { key_code, time, root, event, child, root_x, root_y, event_x, event_y, state, same_screen })
     }
 
     /** Reads a button press from the server (assumes first byte read) */
-    fn read_button_press(&mut self, button: u8, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_button_press(&mut self, button: u8) -> Option<ServerEvent> {
         let (time, root, event, child, root_x, root_y, event_x, event_y, state_pre, same_screen, _)
             = self.read_pointer_event();
         let state = KeyButton::get(state_pre);
-        Some(ServerEvent::ButtonPress { button, sequence_number, time, root, event, child, root_x, root_y, event_x, event_y, state, same_screen })
+        Some(ServerEvent::ButtonPress { button, time, root, event, child, root_x, root_y, event_x, event_y, state, same_screen })
     }
 
     /** Reads a button release from the server (assumes first byte read) */
-    fn read_button_release(&mut self, button: u8, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_button_release(&mut self, button: u8) -> Option<ServerEvent> {
         let (time, root, event, child, root_x, root_y, event_x, event_y, state_pre, same_screen, _)
             = self.read_pointer_event();
         let state = KeyButton::get(state_pre);
-        Some(ServerEvent::ButtonRelease { button, sequence_number, time, root, event, child, root_x, root_y, event_x, event_y, state, same_screen })
+        Some(ServerEvent::ButtonRelease { button, time, root, event, child, root_x, root_y, event_x, event_y, state, same_screen })
     }
 
     /** Reads a motion notify from the server (assumes first byte read) */
-    fn read_motion_notify(&mut self, detail_pre: u8, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_motion_notify(&mut self, detail_pre: u8) -> Option<ServerEvent> {
         let (time, root, event, child, root_x, root_y, event_x, event_y, state_pre, same_screen, _)
             = self.read_pointer_event();
         let detail = match MotionNotifyType::get(detail_pre) {
@@ -455,11 +458,11 @@ impl XClient {
             None => return None
         };
         let state = KeyButton::get(state_pre);
-        Some(ServerEvent::MotionNotify { detail, sequence_number, time, root, event, child, root_x, root_y, event_x, event_y, state, same_screen })
+        Some(ServerEvent::MotionNotify { detail, time, root, event, child, root_x, root_y, event_x, event_y, state, same_screen })
     }
 
     /** Reads a motion notify from the server (assumes first byte read) */
-    fn read_enter_notify(&mut self, detail_pre: u8, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_enter_notify(&mut self, detail_pre: u8) -> Option<ServerEvent> {
         let (time, root, event, child, root_x, root_y, event_x, event_y, state_pre, mode_pre, extra)
             = self.read_pointer_event_with_mode();
         let detail = match NotifyType::get(detail_pre) {
@@ -477,11 +480,11 @@ impl XClient {
             0x03 => (true, true),
             _ => (false, false)
         };
-        Some(ServerEvent::EnterNotify { detail, sequence_number, time, root, event, child, root_x, root_y, event_x, event_y, state, mode, same_screen, focus })
+        Some(ServerEvent::EnterNotify { detail, time, root, event, child, root_x, root_y, event_x, event_y, state, mode, same_screen, focus })
     }
 
     /** Reads a leave notify from the server (assumes first byte read) */
-    fn read_leave_notify(&mut self, detail_pre: u8, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_leave_notify(&mut self, detail_pre: u8) -> Option<ServerEvent> {
         let (time, root, event, child, root_x, root_y, event_x, event_y, state_pre, mode_pre, extra)
             = self.read_pointer_event_with_mode();
         let detail = match NotifyType::get(detail_pre) {
@@ -499,11 +502,11 @@ impl XClient {
             0x03 => (true, true),
             _ => (false, false)
         };
-        Some(ServerEvent::LeaveNotify { detail, sequence_number, time, root, event, child, root_x, root_y, event_x, event_y, state, mode, same_screen, focus })
+        Some(ServerEvent::LeaveNotify { detail, time, root, event, child, root_x, root_y, event_x, event_y, state, mode, same_screen, focus })
     }
 
     /** Reads an event from the server (assumes first byte read) */
-    fn read_focus_in(&mut self, detail_pre: u8, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_focus_in(&mut self, detail_pre: u8) -> Option<ServerEvent> {
         let (event, mode_pre, _) = self.read_focus_event();
         let detail = match FocusType::get(detail_pre) {
             Some(x) => x,
@@ -513,11 +516,11 @@ impl XClient {
             Some(x) => x,
             None => return None
         };
-        Some(ServerEvent::FocusIn { detail, sequence_number, event, mode })
+        Some(ServerEvent::FocusIn { detail, event, mode })
     }
 
     /** Reads an event from the server (assumes first byte read) */
-    fn read_focus_out(&mut self, detail_pre: u8, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_focus_out(&mut self, detail_pre: u8) -> Option<ServerEvent> {
         let (event, mode_pre, _) = self.read_focus_event();
         let detail = match FocusType::get(detail_pre) {
             Some(x) => x,
@@ -527,17 +530,17 @@ impl XClient {
             Some(x) => x,
             None => return None
         };
-        Some(ServerEvent::FocusIn { detail, sequence_number, event, mode })
+        Some(ServerEvent::FocusIn { detail, event, mode })
     }
 
     /** Reads an event from the server (assumes first byte read) */
     #[allow(unused_variables)]
-    fn read_keymap_notify(&mut self, detail: u8, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_keymap_notify(&mut self, detail: u8) -> Option<ServerEvent> {
         panic!("Not implemented yet. Go write an Issue on GitHub please."); // Going to need some research. Doesn't have have a sequence number... is this just 31 bytes?
     }
 
     /** Reads an event from the server (assumes first byte read) */
-    fn read_expose(&mut self, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_expose(&mut self) -> Option<ServerEvent> {
         let window = self.read_u32();
         let x = self.read_u16();
         let y = self.read_u16();
@@ -545,11 +548,11 @@ impl XClient {
         let height = self.read_u16();
         let count = self.read_u16();
         self.read_pad(14);
-        Some(ServerEvent::Expose { sequence_number, window, x, y, width, height, count })
+        Some(ServerEvent::Expose { window, x, y, width, height, count })
     }
 
     /** Reads an event from the server (assumes first byte read) */
-    fn read_graphics_exposure(&mut self, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_graphics_exposure(&mut self) -> Option<ServerEvent> {
         let drawable = self.read_u32();
         let x = self.read_u16();
         let y = self.read_u16();
@@ -559,31 +562,31 @@ impl XClient {
         let count = self.read_u16();
         let major_opcode = self.read_u8();
         self.read_pad(11);
-        Some(ServerEvent::GraphicsExposure { sequence_number, drawable, x, y, width, height, minor_opcode, count, major_opcode })
+        Some(ServerEvent::GraphicsExposure { drawable, x, y, width, height, minor_opcode, count, major_opcode })
     }
 
     /** Reads an event from the server (assumes first byte read) */
-    fn read_no_exposure(&mut self, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_no_exposure(&mut self) -> Option<ServerEvent> {
         let drawable = self.read_u32();
         let minor_opcode = self.read_u16();
         let major_opcode = self.read_u8();
         self.read_pad(21);
-        Some(ServerEvent::NoExposure { sequence_number, drawable, minor_opcode, major_opcode })
+        Some(ServerEvent::NoExposure { drawable, minor_opcode, major_opcode })
     }
 
     /** Reads an event from the server (assumes first byte read) */
-    fn read_visibility_notify(&mut self, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_visibility_notify(&mut self) -> Option<ServerEvent> {
         let window = self.read_u32();
         let state = match VisibilityState::get(self.read_u8()) {
             Some(x) => x,
             None => return None
         };
         self.read_pad(23);
-        Some(ServerEvent::VisibilityNotify { sequence_number, window, state })
+        Some(ServerEvent::VisibilityNotify { window, state })
     }
 
     /** Reads an event from the server (assumes first byte read) */
-    fn read_create_notify(&mut self, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_create_notify(&mut self) -> Option<ServerEvent> {
         let parent = self.read_u32();
         let window = self.read_u32();
         let x = self.read_i16();
@@ -593,44 +596,44 @@ impl XClient {
         let border_width = self.read_u16();
         let override_redirect = self.read_bool();
         self.read_pad(9);
-        Some(ServerEvent::CreateNotify { sequence_number, parent, window, x, y, width, height, border_width, override_redirect })
+        Some(ServerEvent::CreateNotify { parent, window, x, y, width, height, border_width, override_redirect })
     }
 
     /** Reads an event from the server (assumes first byte read) */
-    fn read_destroy_notify(&mut self, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_destroy_notify(&mut self) -> Option<ServerEvent> {
         let event = self.read_u32();
         let window = self.read_u32();
         self.read_pad(20);
-        Some(ServerEvent::DestroyNotify { sequence_number, event, window })
+        Some(ServerEvent::DestroyNotify { event, window })
     }
 
     /** Reads an event from the server (assumes first byte read) */
-    fn read_unmap_notify(&mut self, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_unmap_notify(&mut self) -> Option<ServerEvent> {
         let event = self.read_u32();
         let window = self.read_u32();
         let from_configure = self.read_bool();
         self.read_pad(19);
-        Some(ServerEvent::UnmapNotify { sequence_number, event, window, from_configure })
+        Some(ServerEvent::UnmapNotify { event, window, from_configure })
     }
 
     /** Reads an event from the server (assumes first byte read) */
-    fn read_map_notify(&mut self, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_map_notify(&mut self) -> Option<ServerEvent> {
         let event = self.read_u32();
         let window = self.read_u32();
         let override_redirect = self.read_bool();
         self.read_pad(19);
-        Some(ServerEvent::MapNotify { sequence_number, event, window, override_redirect })
+        Some(ServerEvent::MapNotify { event, window, override_redirect })
     }
 
     /** Reads an event from the server (assumes first byte read) */
-    fn read_map_request(&mut self, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_map_request(&mut self) -> Option<ServerEvent> {
         let parent = self.read_u32();
         let window = self.read_u32();
         self.read_pad(20);
-        Some(ServerEvent::MapRequest { sequence_number, parent, window })
+        Some(ServerEvent::MapRequest { parent, window })
     }
 
-    fn read_reparent_notify(&mut self, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_reparent_notify(&mut self) -> Option<ServerEvent> {
         let event = self.read_u32();
         let window = self.read_u32();
         let parent = self.read_u32();
@@ -638,11 +641,11 @@ impl XClient {
         let y = self.read_i16();
         let override_redirect = self.read_bool();
         self.read_pad(11);
-        Some(ServerEvent::ReparentNotify { sequence_number, event, window, parent, x, y, override_redirect })
+        Some(ServerEvent::ReparentNotify { event, window, parent, x, y, override_redirect })
     }
 
     /** Reads an event from the server (assumes first byte read) */
-    fn read_configure_notify(&mut self, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_configure_notify(&mut self) -> Option<ServerEvent> {
         let event = self.read_u32();
         let window = self.read_u32();
         let above_sibling = self.read_u32();
@@ -653,11 +656,11 @@ impl XClient {
         let border_width = self.read_u16();
         let override_redirect = self.read_bool();
         self.read_pad(5);
-        Some(ServerEvent::ConfigureNotify { sequence_number, event, window, above_sibling, x, y, width, height, border_width, override_redirect })
+        Some(ServerEvent::ConfigureNotify { event, window, above_sibling, x, y, width, height, border_width, override_redirect })
     }
 
     /** Reads an event from the server (assumes first byte read) */
-    fn read_configure_request(&mut self, stack_mode_pre: u8, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_configure_request(&mut self, stack_mode_pre: u8) -> Option<ServerEvent> {
         let stack_mode = match StackMode::get(stack_mode_pre) {
             Some(x) => x,
             None => return None
@@ -672,30 +675,30 @@ impl XClient {
         let border_width = self.read_u16();
         let values = ConfigureRequestValues::get(self.read_u16());
         self.read_pad(4);
-        Some(ServerEvent::ConfigureRequest { stack_mode, sequence_number, parent, window, sibling, x, y, width, height, border_width, values })
+        Some(ServerEvent::ConfigureRequest { stack_mode, parent, window, sibling, x, y, width, height, border_width, values })
     }
 
     /** Reads an event from the server (assumes first byte read) */
-    fn read_gravity_notify(&mut self, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_gravity_notify(&mut self) -> Option<ServerEvent> {
         let event = self.read_u32();
         let window = self.read_u32();
         let x = self.read_i16();
         let y = self.read_i16();
         self.read_pad(16);
-        Some(ServerEvent::GravityNotify { sequence_number, event, window, x, y })
+        Some(ServerEvent::GravityNotify { event, window, x, y })
     }
 
     /** Reads an event from the server (assumes first byte read) */
-    fn read_resize_request(&mut self, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_resize_request(&mut self) -> Option<ServerEvent> {
         let window = self.read_u32();
         let width = self.read_u16();
         let height = self.read_u16();
         self.read_pad(20);
-        Some(ServerEvent::ResizeRequest { sequence_number, window, width, height })
+        Some(ServerEvent::ResizeRequest { window, width, height })
     }
 
     /** Reads an event from the server (assumes first byte read) */
-    fn read_circulate_notify(&mut self, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_circulate_notify(&mut self) -> Option<ServerEvent> {
         let event = self.read_u32();
         let window = self.read_u32();
         self.read_pad(4); // Spec says "4 bytes, WINDOW, unused"... wut
@@ -704,11 +707,11 @@ impl XClient {
             None => return None
         };
         self.read_pad(15);
-        Some(ServerEvent::CirculateNotify { sequence_number, event, window, place })
+        Some(ServerEvent::CirculateNotify { event, window, place })
     }
 
     /** Reads an event from the server (assumes first byte read) */
-    fn read_circulate_request(&mut self, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_circulate_request(&mut self) -> Option<ServerEvent> {
         let parent = self.read_u32();
         let window = self.read_u32();
         self.read_pad(4);
@@ -717,11 +720,11 @@ impl XClient {
             None => return None
         };
         self.read_pad(15);
-        Some(ServerEvent::CirculateRequest { sequence_number, parent, window, place })
+        Some(ServerEvent::CirculateRequest { parent, window, place })
     }
 
     /** Reads an event from the server (assumes first byte read) */
-    fn read_property_notify(&mut self, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_property_notify(&mut self) -> Option<ServerEvent> {
         let window = self.read_u32();
         let atom = self.read_u32();
         let time = self.read_u32();
@@ -730,20 +733,20 @@ impl XClient {
             None => return None
         };
         self.read_pad(15);
-        Some(ServerEvent::PropertyNotify { sequence_number, window, atom, time, state })
+        Some(ServerEvent::PropertyNotify { window, atom, time, state })
     }
 
     /** Reads an event from the server (assumes first byte read) */
-    fn read_selection_clear(&mut self, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_selection_clear(&mut self) -> Option<ServerEvent> {
         let time = self.read_u32();
         let owner = self.read_u32();
         let selection = self.read_u32();
         self.read_pad(16);
-        Some(ServerEvent::SelectionClear { sequence_number, time, owner, selection })
+        Some(ServerEvent::SelectionClear { time, owner, selection })
     }
 
     /** Reads an event from the server (assumes first byte read) */
-    fn read_selection_request(&mut self, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_selection_request(&mut self) -> Option<ServerEvent> {
         let time = self.read_u32();
         let owner = self.read_u32();
         let requestor = self.read_u32();
@@ -751,22 +754,22 @@ impl XClient {
         let target = self.read_u32();
         let property = self.read_u32();
         self.read_pad(4);
-        Some(ServerEvent::SelectionRequest { sequence_number, time, owner, requestor, selection, target, property })
+        Some(ServerEvent::SelectionRequest { time, owner, requestor, selection, target, property })
     }
 
     /** Reads an event from the server (assumes first byte read) */
-    fn read_selection_notify(&mut self, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_selection_notify(&mut self) -> Option<ServerEvent> {
         let time = self.read_u32();
         let requestor = self.read_u32();
         let selection = self.read_u32();
         let target = self.read_u32();
         let property = self.read_u32();
         self.read_pad(8);
-        Some(ServerEvent::SelectionNotify { sequence_number, time, requestor, selection, target, property })
+        Some(ServerEvent::SelectionNotify { time, requestor, selection, target, property })
     }
 
     /** Reads an event from the server (assumes first byte read) */
-    fn read_colormap_notify(&mut self, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_colormap_notify(&mut self) -> Option<ServerEvent> {
         let window = self.read_u32();
         let colormap = self.read_u32();
         let new = self.read_bool();
@@ -775,19 +778,19 @@ impl XClient {
             None => return None
         };
         self.read_pad(18);
-        Some(ServerEvent::ColormapNotify { sequence_number, window, colormap, new, state})
+        Some(ServerEvent::ColormapNotify { window, colormap, new, state})
     }
 
     /** Reads an event from the server (assumes first byte read) */
-    fn read_client_message(&mut self, format: u8, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_client_message(&mut self, format: u8) -> Option<ServerEvent> {
         let window = self.read_u32();
         let mtype = self.read_u32();
         self.read_pad(20);
-        Some(ServerEvent::ClientMessage { format, sequence_number, window, mtype })
+        Some(ServerEvent::ClientMessage { format, window, mtype })
     }
 
     /** Reads an event from the server (assumes first byte read) */
-    fn read_mapping_notify(&mut self, sequence_number: u16) -> Option<ServerEvent> {
+    fn read_mapping_notify(&mut self) -> Option<ServerEvent> {
         let request = match MappingType::get(self.read_u8()) {
             Some(x) => x,
             None => return None
@@ -795,14 +798,17 @@ impl XClient {
         let first_keycode = self.read_char();
         let count = self.read_u8();
         self.read_pad(25);
-        Some(ServerEvent::MappingNotify { sequence_number, request, first_keycode, count })
+        Some(ServerEvent::MappingNotify { request, first_keycode, count })
     }
 }
 
 impl XBufferedWriter for XClient {
     /** Flushes the buffer. */
-    fn write_flush(&mut self) {
+    fn write_sequence(&mut self) -> u16 {
         self.buf.flush().unwrap();
+        let the_sequence = self.current_sequence;
+        self.current_sequence += 1;
+        the_sequence
     }
 
     /**
