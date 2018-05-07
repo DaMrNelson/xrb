@@ -1,5 +1,5 @@
 [package]
-name = "xcb"
+name = "xrb"
 version = "0.1.0"
 authors = ["Nelson Schramm <nelson@nschramm.com>"]
 
