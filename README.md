@@ -11,6 +11,8 @@ See tests/main.rs for some example usage.
     - Responds with replies, errors, and events
 
 # TODO
+    - Replies (Crl+F "▶")
+        - Also figure out how replies are separated from each other. Is it by sequence_number?
     - read_keymap_notify
     - Multithread usage?
         - Thread lock when creating new resource IDs. Or maybe just thread lock the entire thing? Idk yet.

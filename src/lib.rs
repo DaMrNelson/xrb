@@ -205,6 +205,9 @@ impl XClient {
                         None => continue
                     }
                 },
+                protocol::REPLY_REPLY => ServerResponse::Reply({
+                    // TODO: Parse different types of replies. How do dat? Idfk
+                }),
                 other => ServerResponse::Event(
                     match match other { // MY EYES
                         protocol::REPLY_KEY_PRESS => self.read_key_press(detail, sequence_number),
@@ -249,7 +252,9 @@ impl XClient {
             }
         }
     }
+}
 
+impl XClient { // This is actually a pretty nice feature for organization
     /** Tells the X Server to create a window */
     pub fn create_window(&mut self, window: &Window) {
         // Should be 28 not including values and their mask
@@ -282,6 +287,16 @@ impl XClient {
         self.write_u16(3 + values.len() as u16); // data length
         self.write_u32(wid);
         self.write_values(&values);
+
+        self.write_flush();
+    }
+
+    /** Tells the X Server to send us the window's attributes */
+    pub fn get_window_attributes(&mut self, wid: u32) {
+        self.write_u8(protocol::OP_GET_WINDOW_ATTRIBUTES);
+        self.write_pad(1);
+        self.write_u16(2);
+        self.write_u32(wid);
 
         self.write_flush();
     }
@@ -322,7 +337,7 @@ impl XClient {
     }
 }
 
-impl XClient { // This is actually a pretty nice feature for organization
+impl XClient {
     /** Reads an error from the server (assumes first byte read) */
     fn read_error(&mut self, code: u8, sequence_number: u16) -> Option<ServerError> {
         let info = self.read_u32(); // Always u32 or unused

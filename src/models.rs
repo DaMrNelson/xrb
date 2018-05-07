@@ -260,6 +260,11 @@ pub enum ServerError {
 }
 
 #[derive(Debug)]
+pub enum SeverReply {
+    // TDOO: These
+}
+
+#[derive(Debug)]
 pub enum ServerEvent {
     KeyPress {
         key_code: u8,
@@ -555,6 +560,7 @@ pub enum ServerEvent {
 
 pub enum ServerResponse {
     Error(ServerError),
+    Reply(ServerReply),
     Event(ServerEvent)
 }
 
