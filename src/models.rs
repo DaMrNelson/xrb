@@ -1,7 +1,7 @@
 use std::mem::discriminant;
 
 use XClient;
-use xwriter::XBufferedWriter;
+use xreaderwriter::XBufferedWriter;
 
 // Root trait for all values (ie GraphicsContextValue)
 pub trait Value {

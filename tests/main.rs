@@ -10,8 +10,7 @@ mod tests {
     fn main_test() {
         // Connect
         //let mut client = XClient::new(String::from("/tmp/.X11-unix/X1"));
-        let mut client = XClient::new(String::from("/tmp/.X11-unix/X9"));
-        client.connect();
+        let mut client = XClient::connect(String::from("/tmp/.X11-unix/X9"));
 
         ///////////////////////////////////
         //// TESTING

@@ -1,21 +1,23 @@
-extern crate bufstream;
-
 pub mod models;
 mod protocol;
-mod xwriter;
+mod xreaderwriter;
 
 use std::os::unix::net::UnixStream;
 use std::io::prelude::*;
+use std::io::{BufWriter, BufReader};
 
-use self::bufstream::BufStream;
+use std::thread;
+use std::sync::mpsc;
+
 use self::models::*;
-use self::xwriter::XBufferedWriter;
+use self::xreaderwriter::{XBufferedWriter, XBufferedReader, XReadHelper};
 
 pub struct XClient {
     pub connected: bool,
     pub connect_info: ConnectInfo,
     pub current_sequence: u16,
-    buf: BufStream<UnixStream>,
+    buf_out: BufWriter<UnixStream>,
+    receiver: mpsc::Receiver<ServerResponse>,
     buf_one_byte: Vec<u8>,
     buf_two_byte: Vec<u8>,
     buf_four_byte: Vec<u8>,
@@ -23,22 +25,37 @@ pub struct XClient {
 }
 
 impl XClient {
-    pub fn new(host: String) -> XClient {
+    /**
+     * Connects to the given X server.
+     * Blocks until the connection is complete.
+     * Spawns a new 1:1 thread to constantly read input from the X Server, which prevents deadlocks.
+     */
+    pub fn connect(host: String) -> XClient {
         let stream = UnixStream::connect(host).unwrap();
-        XClient {
+        let (sender, receiver) = mpsc::channel();
+        let mut client = XClient {
             connected: false,
             connect_info: ConnectInfo::empty(),
             current_sequence: 0,
-            buf: BufStream::new(stream),
+            buf_out: BufWriter::new(stream),
+            receiver: receiver,
             buf_one_byte: vec![0u8; 1],
             buf_two_byte: vec![0u8; 2],
             buf_four_byte: vec![0u8; 4],
             next_resource_id: 0
-        }
+        };
+        client.setup(sender);
+        client
     }
 
     /** Sends the connection parameters and returns if it connected or not. */
-    pub fn connect(&mut self) {
+    fn setup(&mut self, sender: mpsc::Sender<ServerResponse>) {
+        let mut reader = XReadHelper::new(
+            BufReader::new(
+                self.buf_out.get_ref().try_clone().unwrap()
+            )
+        );
+
         // Send connection string
         {
             self.write_u8(protocol::CONNECT_LSB);
@@ -58,11 +75,11 @@ impl XClient {
         // Read response header
         {
             // Read the head
-            self.connect_info.status_code = self.read_u8();
-            self.read_pad(1);
-            self.connect_info.protocol_major_version = self.read_u16();
-            self.connect_info.protocol_minor_version = self.read_u16();
-            self.connect_info.additional_data_len = self.read_u16();
+            self.connect_info.status_code = reader.read_u8();
+            reader.read_pad(1);
+            self.connect_info.protocol_major_version = reader.read_u16();
+            self.connect_info.protocol_minor_version = reader.read_u16();
+            self.connect_info.additional_data_len = reader.read_u16();
 
             // Check if the connection was a success
             // TODO: Parse body of failures
@@ -75,41 +92,41 @@ impl XClient {
 
             // Parse success info
             println!("Server Protocol: {}.{}", self.connect_info.protocol_major_version, self.connect_info.protocol_minor_version);
-            self.connect_info.release_number = self.read_u32();
-            self.connect_info.resource_id_base = self.read_u32();
-            self.connect_info.resource_id_mask = self.read_u32();
-            self.connect_info.motion_buffer_size = self.read_u32();
-            let vendor_length = self.read_u16();
-            self.connect_info.max_request_length = self.read_u16();
-            self.connect_info.num_screens = self.read_u8();
-            self.connect_info.num_formats = self.read_u8();
-            self.connect_info.image_byte_order = match self.read_u8() {
+            self.connect_info.release_number = reader.read_u32();
+            self.connect_info.resource_id_base = reader.read_u32();
+            self.connect_info.resource_id_mask = reader.read_u32();
+            self.connect_info.motion_buffer_size = reader.read_u32();
+            let vendor_length = reader.read_u16();
+            self.connect_info.max_request_length = reader.read_u16();
+            self.connect_info.num_screens = reader.read_u8();
+            self.connect_info.num_formats = reader.read_u8();
+            self.connect_info.image_byte_order = match reader.read_u8() {
                 0 => ByteOrder::LSBFirst,
                 1 => ByteOrder::MSBFirst,
                 order => panic!("Unknown image byte order {}", order),
             };
-            self.connect_info.bitmap_format_bit_order = match self.read_u8() {
+            self.connect_info.bitmap_format_bit_order = match reader.read_u8() {
                 0 => BitOrder::LeastSignificant,
                 1 => BitOrder::MostSignificant,
                 order => panic!("Unknown bitmap format bit order {}", order)
             };
-            self.connect_info.bitmap_format_scanline_unit = self.read_u8();
-            self.connect_info.bitmap_format_scanline_pad = self.read_u8();
-            self.connect_info.min_keycode = self.read_char();
-            self.connect_info.max_keycode = self.read_char();
-            self.read_pad(4);
+            self.connect_info.bitmap_format_scanline_unit = reader.read_u8();
+            self.connect_info.bitmap_format_scanline_pad = reader.read_u8();
+            self.connect_info.min_keycode = reader.read_char();
+            self.connect_info.max_keycode = reader.read_char();
+            reader.read_pad(4);
 
-            self.connect_info.vendor = self.read_str(vendor_length as usize);
-            self.read_pad((vendor_length as usize) % 4);
+            self.connect_info.vendor = reader.read_str(vendor_length as usize);
+            reader.read_pad((vendor_length as usize) % 4);
             println!("Server Vendor: {}", self.connect_info.vendor);
 
             // Formats (8 bytes each)
             for _ in 0..self.connect_info.num_formats {
                 let mut format = Format::empty();
-                format.depth = self.read_u8();
-                format.bits_per_pixel = self.read_u8();
-                format.scanline_pad = self.read_u8();
-                self.read_pad(5);
+                format.depth = reader.read_u8();
+                format.bits_per_pixel = reader.read_u8();
+                format.scanline_pad = reader.read_u8();
+                reader.read_pad(5);
 
                 self.connect_info.formats.push(format);
             }
@@ -117,41 +134,41 @@ impl XClient {
             // Read screens (x bytes, where x is a multiple of 4)
             for _ in 0..self.connect_info.num_screens {
                 let mut screen = Screen::empty();
-                screen.root = self.read_u32();
-                screen.default_colormap = self.read_u32();
-                screen.white_pixel = self.read_u32();
-                screen.black_pixel = self.read_u32();
-                screen.current_input_masks = self.read_u32();
-                screen.width_in_pixels = self.read_u16();
-                screen.height_in_pixels = self.read_u16();
-                screen.width_in_millimeters = self.read_u16();
-                screen.height_in_millimeters = self.read_u16();
-                screen.min_installed_maps = self.read_u16();
-                screen.max_installed_maps = self.read_u16();
-                screen.root_visual = self.read_u32();
-                screen.backing_stores = match self.read_u8() {
+                screen.root = reader.read_u32();
+                screen.default_colormap = reader.read_u32();
+                screen.white_pixel = reader.read_u32();
+                screen.black_pixel = reader.read_u32();
+                screen.current_input_masks = reader.read_u32();
+                screen.width_in_pixels = reader.read_u16();
+                screen.height_in_pixels = reader.read_u16();
+                screen.width_in_millimeters = reader.read_u16();
+                screen.height_in_millimeters = reader.read_u16();
+                screen.min_installed_maps = reader.read_u16();
+                screen.max_installed_maps = reader.read_u16();
+                screen.root_visual = reader.read_u32();
+                screen.backing_stores = match reader.read_u8() {
                     0 => ScreenBackingStores::Never,
                     1 => ScreenBackingStores::WhenMapped,
                     2 => ScreenBackingStores::Always,
                     store => panic!("Unknown backing score {}", store)
                 };
-                screen.save_unders = self.read_bool();
-                screen.root_depth = self.read_u8();
-                screen.num_depths = self.read_u8();
+                screen.save_unders = reader.read_bool();
+                screen.root_depth = reader.read_u8();
+                screen.num_depths = reader.read_u8();
 
                 // Read depths (x bytes, where x is a multiple of 4)
                 for _ in 0..screen.num_depths {
                     let mut depth = Depth::empty();
-                    depth.depth = self.read_u8();
-                    self.read_pad(1);
-                    depth.num_visuals = self.read_u16();
-                    self.read_pad(4); // Unused
+                    depth.depth = reader.read_u8();
+                    reader.read_pad(1);
+                    depth.num_visuals = reader.read_u16();
+                    reader.read_pad(4); // Unused
                     
                     // Read visuals (24 x num visuals bytes)
                     for _ in 0..depth.num_visuals {
                         let mut visual = Visual::empty();
-                        visual.id = self.read_u32();
-                        visual.class = match self.read_u8() {
+                        visual.id = reader.read_u32();
+                        visual.class = match reader.read_u8() {
                             0 => VisualType::StaticGray,
                             1 => VisualType::GrayScale,
                             2 => VisualType::StaticColor,
@@ -160,12 +177,12 @@ impl XClient {
                             5 => VisualType::DirectColor,
                             class => panic!("Unknown visual class {}", class)
                         };
-                        visual.bits_per_rgb_value = self.read_u8();
-                        visual.colormap_entries = self.read_u16();
-                        visual.red_mask = self.read_u32();
-                        visual.green_mask = self.read_u32();
-                        visual.blue_mask = self.read_u32();
-                        self.read_pad(4); // Unused
+                        visual.bits_per_rgb_value = reader.read_u8();
+                        visual.colormap_entries = reader.read_u16();
+                        visual.red_mask = reader.read_u32();
+                        visual.green_mask = reader.read_u32();
+                        visual.blue_mask = reader.read_u32();
+                        reader.read_pad(4); // Unused
 
                         depth.visuals.push(visual);
                     }
@@ -175,6 +192,78 @@ impl XClient {
 
                 self.connect_info.screens.push(screen);
             }
+        }
+
+        // Start event receiving thread
+        {
+            thread::spawn(move || { // Moves `sender` and `reader`
+                loop {
+                    // Read header
+                    let opcode = reader.read_u8();
+                    let detail = reader.read_u8();
+                    let sequence_number = reader.read_u16();
+
+                    let response = match opcode {
+                        protocol::REPLY_ERROR => {
+                            match reader.read_error(detail) {
+                                Some(err) => ServerResponse::Error(err, sequence_number),
+                                None => continue
+                            }
+                        },
+                        protocol::REPLY_REPLY => ServerResponse::Reply({
+                            // TODO: Parse different types of replies
+                            // Probably keep a list of all requests made (using another mpsc channel) and match the sequence numbers to determine what object to parse replies into.
+                            panic!("Server replies not implemented yet.");
+                        }, sequence_number),
+                        other => ServerResponse::Event(
+                            match match other { // MY EYES
+                                protocol::REPLY_KEY_PRESS => reader.read_key_press(detail),
+                                protocol::REPLY_KEY_RELEASE => reader.read_key_release(detail),
+                                protocol::REPLY_BUTTON_PRESS => reader.read_button_press(detail),
+                                protocol::REPLY_BUTTON_RELEASE => reader.read_button_release(detail),
+                                protocol::REPLY_MOTION_NOTIFY => reader.read_motion_notify(detail),
+                                protocol::REPLY_ENTER_NOTIFY => reader.read_enter_notify(detail),
+                                protocol::REPLY_LEAVE_NOTIFY => reader.read_leave_notify(detail),
+                                protocol::REPLY_FOCUS_IN => reader.read_focus_in(detail),
+                                protocol::REPLY_FOCUS_OUT => reader.read_focus_out(detail),
+                                protocol::REPLY_KEYMAP_NOTIFY => reader.read_keymap_notify(detail),
+                                protocol::REPLY_EXPOSE => reader.read_expose(),
+                                protocol::REPLY_GRAPHICS_EXPOSURE => reader.read_graphics_exposure(),
+                                protocol::REPLY_NO_EXPOSURE => reader.read_no_exposure(),
+                                protocol::REPLY_VISIBILITY_NOTIFY => reader.read_visibility_notify(),
+                                protocol::REPLY_CREATE_NOTIFY => reader.read_create_notify(),
+                                protocol::REPLY_DESTROY_NOTIFY => reader.read_destroy_notify(),
+                                protocol::REPLY_UNMAP_NOTIFY => reader.read_unmap_notify(),
+                                protocol::REPLY_MAP_NOTIFY => reader.read_map_notify(),
+                                protocol::REPLY_MAP_REQUEST => reader.read_map_request(),
+                                protocol::REPLY_REPART_NOTIFY => reader.read_reparent_notify(),
+                                protocol::REPLY_CONFIGURE_NOTIFY => reader.read_configure_notify(),
+                                protocol::REPLY_CONFIGURE_REQUEST => reader.read_configure_request(detail),
+                                protocol::REPLY_GRAVITY_NOTIFY => reader.read_gravity_notify(),
+                                protocol::REPLY_RESIZE_REQUEST => reader.read_resize_request(),
+                                protocol::REPLY_CIRCULATE_NOTIFY => reader.read_circulate_notify(),
+                                protocol::REPLY_CIRCULATE_REQUEST => reader.read_circulate_request(),
+                                protocol::REPLY_PROPERTY_NOTIFY => reader.read_property_notify(),
+                                protocol::REPLY_SELECTION_CLEAR => reader.read_selection_clear(),
+                                protocol::REPLY_SELECTION_REQUEST => reader.read_selection_request(),
+                                protocol::REPLY_SELECTION_NOTIFY => reader.read_selection_notify(),
+                                protocol::REPLY_COLORMAP_NOTIFY => reader.read_colormap_notify(),
+                                protocol::REPLY_CLIENT_MESSAGE => reader.read_client_message(detail),
+                                protocol::REPLY_MAPPING_NOTIFY => reader.read_mapping_notify(),
+                                _ => continue
+                            } {
+                                Some(event) => event,
+                                None => continue
+                            }
+                        , sequence_number)
+                    };
+
+                    match sender.send(response) {
+                        Ok(_) => (),
+                        Err(e) => eprintln!("Failed to forward error, reply, or event to main thread: {:?}", e)
+                    }
+                }
+            });
         }
     }
 
@@ -193,66 +282,26 @@ impl XClient {
         self.connect_info.resource_id_base | id
     }
 
-    /** Waits for the next available event, error, or reply */
+    /** Waits for the next available event, error, or reply. Blocks.
+     * Use get_message if you do not want to block.
+     */
     pub fn wait_for_message(&mut self) -> ServerResponse {
         loop {
-            // Read header
-            let opcode = self.read_u8();
-            let detail = self.read_u8();
-            let sequence_number = self.read_u16();
+            match self.receiver.recv() {
+                Ok(x) => return x,
+                Err(e) => eprintln!("Failed to get message from the receiver. Will try again. Error: {:?}", e)
+            };
+        }
+    }
 
-            return match opcode {
-                protocol::REPLY_ERROR => {
-                    match self.read_error(detail) {
-                        Some(err) => ServerResponse::Error(err, sequence_number),
-                        None => continue
-                    }
-                },
-                protocol::REPLY_REPLY => ServerResponse::Reply({
-                    panic!("Server replies not implemented yet.") // TODO: Parse different types of replies. How do dat? Idfk
-                }, sequence_number),
-                other => ServerResponse::Event(
-                    match match other { // MY EYES
-                        protocol::REPLY_KEY_PRESS => self.read_key_press(detail),
-                        protocol::REPLY_KEY_RELEASE => self.read_key_release(detail),
-                        protocol::REPLY_BUTTON_PRESS => self.read_button_press(detail),
-                        protocol::REPLY_BUTTON_RELEASE => self.read_button_release(detail),
-                        protocol::REPLY_MOTION_NOTIFY => self.read_motion_notify(detail),
-                        protocol::REPLY_ENTER_NOTIFY => self.read_enter_notify(detail),
-                        protocol::REPLY_LEAVE_NOTIFY => self.read_leave_notify(detail),
-                        protocol::REPLY_FOCUS_IN => self.read_focus_in(detail),
-                        protocol::REPLY_FOCUS_OUT => self.read_focus_out(detail),
-                        protocol::REPLY_KEYMAP_NOTIFY => self.read_keymap_notify(detail),
-                        protocol::REPLY_EXPOSE => self.read_expose(),
-                        protocol::REPLY_GRAPHICS_EXPOSURE => self.read_graphics_exposure(),
-                        protocol::REPLY_NO_EXPOSURE => self.read_no_exposure(),
-                        protocol::REPLY_VISIBILITY_NOTIFY => self.read_visibility_notify(),
-                        protocol::REPLY_CREATE_NOTIFY => self.read_create_notify(),
-                        protocol::REPLY_DESTROY_NOTIFY => self.read_destroy_notify(),
-                        protocol::REPLY_UNMAP_NOTIFY => self.read_unmap_notify(),
-                        protocol::REPLY_MAP_NOTIFY => self.read_map_notify(),
-                        protocol::REPLY_MAP_REQUEST => self.read_map_request(),
-                        protocol::REPLY_REPART_NOTIFY => self.read_reparent_notify(),
-                        protocol::REPLY_CONFIGURE_NOTIFY => self.read_configure_notify(),
-                        protocol::REPLY_CONFIGURE_REQUEST => self.read_configure_request(detail),
-                        protocol::REPLY_GRAVITY_NOTIFY => self.read_gravity_notify(),
-                        protocol::REPLY_RESIZE_REQUEST => self.read_resize_request(),
-                        protocol::REPLY_CIRCULATE_NOTIFY => self.read_circulate_notify(),
-                        protocol::REPLY_CIRCULATE_REQUEST => self.read_circulate_request(),
-                        protocol::REPLY_PROPERTY_NOTIFY => self.read_property_notify(),
-                        protocol::REPLY_SELECTION_CLEAR => self.read_selection_clear(),
-                        protocol::REPLY_SELECTION_REQUEST => self.read_selection_request(),
-                        protocol::REPLY_SELECTION_NOTIFY => self.read_selection_notify(),
-                        protocol::REPLY_COLORMAP_NOTIFY => self.read_colormap_notify(),
-                        protocol::REPLY_CLIENT_MESSAGE => self.read_client_message(detail),
-                        protocol::REPLY_MAPPING_NOTIFY => self.read_mapping_notify(),
-                        _ => continue
-                    } {
-                        Some(event) => event,
-                        None => continue
-                    }
-                , sequence_number)
-            }
+    /**
+     * Returns the next available event, error, or reply, or None if there is nothing yet. Does not block.
+     * Use wait_for_message to block until a new message is received.
+     */
+    pub fn get_message(&mut self) -> Option<ServerResponse> {
+        match self.receiver.try_recv() {
+            Ok(x) => Some(x),
+            Err(_) => None
         }
     }
 }
@@ -340,472 +389,10 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 }
 
-impl XClient {
-    /** Reads an error from the server (assumes first byte read) */
-    fn read_error(&mut self, code: u8) -> Option<ServerError> {
-        let info = self.read_u32(); // Always u32 or unused
-        let minor_opcode = self.read_u16();
-        let major_opcode = self.read_u8();
-        self.read_pad(21);
-
-        match code {
-            protocol::ERROR_REQUEST => Some(ServerError::Request { minor_opcode, major_opcode }),
-            protocol::ERROR_VALUE => Some(ServerError::Value { minor_opcode, major_opcode, bad_value: info }),
-            protocol::ERROR_WINDOW => Some(ServerError::Window { minor_opcode, major_opcode, bad_resource_id: info }),
-            protocol::ERROR_PIXMAP => Some(ServerError::Pixmap { minor_opcode, major_opcode, bad_resource_id: info }),
-            protocol::ERROR_ATOM => Some(ServerError::Atom { minor_opcode, major_opcode, bad_atom_id: info }),
-            protocol::ERROR_CURSOR => Some(ServerError::Cursor { minor_opcode, major_opcode, bad_resource_id: info }),
-            protocol::ERROR_FONT => Some(ServerError::Font { minor_opcode, major_opcode, bad_resource_id: info }),
-            protocol::ERROR_MATCH => Some(ServerError::Match { minor_opcode, major_opcode }),
-            protocol::ERROR_DRAWABLE => Some(ServerError::Drawable { minor_opcode, major_opcode, bad_resource_id: info }),
-            protocol::ERROR_ACCESS => Some(ServerError::Access { minor_opcode, major_opcode }),
-            protocol::ERROR_ALLOC => Some(ServerError::Alloc { minor_opcode, major_opcode }),
-            protocol::ERROR_COLORMAP => Some(ServerError::Colormap { minor_opcode, major_opcode, bad_resource_id: info }),
-            protocol::ERROR_G_CONTEXT => Some(ServerError::GContext { minor_opcode, major_opcode, bad_resource_id: info }),
-            protocol::ERROR_ID_CHOICE => Some(ServerError::IDChoice { minor_opcode, major_opcode, bad_resource_id: info }),
-            protocol::ERROR_NAME => Some(ServerError::Name { minor_opcode, major_opcode }),
-            protocol::ERROR_LENGTH => Some(ServerError::Length { minor_opcode, major_opcode }),
-            protocol::ERROR_IMPLEMENTATION => Some(ServerError::Implementation { minor_opcode, major_opcode }),
-            _ => None
-        }
-    }
-
-    /** Reads a generic pointer event (assumes first byte read) and returns the results. This also reads the extra padding byte at the end, if there is one
-     * Returns detail, sequence_number, time, root, event, child, root_x, root_y, event_x, event_y, state, same_screen, extra
-     */
-    fn read_pointer_event(&mut self) -> (u32, u32, u32, u32, i16, i16, i16, i16, u16, bool, u8) {
-        (
-            self.read_u32(),
-            self.read_u32(),
-            self.read_u32(),
-            self.read_u32(),
-            self.read_i16(),
-            self.read_i16(),
-            self.read_i16(),
-            self.read_i16(),
-            self.read_u16(),
-            self.read_bool(),
-            self.read_u8()
-        )
-    }
-
-    /** Reads a generic pointer event (assumes first byte read) and returns the results. This also reads the extra padding byte at the end, if there is one
-     * Returns detail, sequence_number, time, root, event, child, root_x, root_y, event_x, event_y, state, mode, [same_screen+focus byte]
-     */
-    fn read_pointer_event_with_mode(&mut self) -> (u32, u32, u32, u32, i16, i16, i16, i16, u16, u8, u8) {
-        (
-            self.read_u32(),
-            self.read_u32(),
-            self.read_u32(),
-            self.read_u32(),
-            self.read_i16(),
-            self.read_i16(),
-            self.read_i16(),
-            self.read_i16(),
-            self.read_u16(),
-            self.read_u8(),
-            self.read_u8()
-        )
-    }
-
-    /** Reads a generic focu sevent (assumes first byte read) and returns the results. Also reads the padding. */
-    fn read_focus_event(&mut self) -> (u32, u8, ()) {
-        (
-            self.read_u32(),
-            self.read_u8(),
-            self.read_pad(23)
-        )
-    }
-
-    /** Reads a key press from the server (assumes first byte read) */
-    fn read_key_press(&mut self, key_code: u8) -> Option<ServerEvent> {
-        let (time, root, event, child, root_x, root_y, event_x, event_y, state_pre, same_screen, _)
-            = self.read_pointer_event();
-        let state = KeyButton::get(state_pre);
-        Some(ServerEvent::KeyPress { key_code, time, root, event, child, root_x, root_y, event_x, event_y, state, same_screen })
-    }
-
-    /** Reads a key release from the server (assumes first byte read) */
-    fn read_key_release(&mut self, key_code: u8) -> Option<ServerEvent> {
-        let (time, root, event, child, root_x, root_y, event_x, event_y, state_pre, same_screen, _)
-            = self.read_pointer_event();
-        let state = KeyButton::get(state_pre);
-        Some(ServerEvent::KeyRelease { key_code, time, root, event, child, root_x, root_y, event_x, event_y, state, same_screen })
-    }
-
-    /** Reads a button press from the server (assumes first byte read) */
-    fn read_button_press(&mut self, button: u8) -> Option<ServerEvent> {
-        let (time, root, event, child, root_x, root_y, event_x, event_y, state_pre, same_screen, _)
-            = self.read_pointer_event();
-        let state = KeyButton::get(state_pre);
-        Some(ServerEvent::ButtonPress { button, time, root, event, child, root_x, root_y, event_x, event_y, state, same_screen })
-    }
-
-    /** Reads a button release from the server (assumes first byte read) */
-    fn read_button_release(&mut self, button: u8) -> Option<ServerEvent> {
-        let (time, root, event, child, root_x, root_y, event_x, event_y, state_pre, same_screen, _)
-            = self.read_pointer_event();
-        let state = KeyButton::get(state_pre);
-        Some(ServerEvent::ButtonRelease { button, time, root, event, child, root_x, root_y, event_x, event_y, state, same_screen })
-    }
-
-    /** Reads a motion notify from the server (assumes first byte read) */
-    fn read_motion_notify(&mut self, detail_pre: u8) -> Option<ServerEvent> {
-        let (time, root, event, child, root_x, root_y, event_x, event_y, state_pre, same_screen, _)
-            = self.read_pointer_event();
-        let detail = match MotionNotifyType::get(detail_pre) {
-            Some(x) => x,
-            None => return None
-        };
-        let state = KeyButton::get(state_pre);
-        Some(ServerEvent::MotionNotify { detail, time, root, event, child, root_x, root_y, event_x, event_y, state, same_screen })
-    }
-
-    /** Reads a motion notify from the server (assumes first byte read) */
-    fn read_enter_notify(&mut self, detail_pre: u8) -> Option<ServerEvent> {
-        let (time, root, event, child, root_x, root_y, event_x, event_y, state_pre, mode_pre, extra)
-            = self.read_pointer_event_with_mode();
-        let detail = match NotifyType::get(detail_pre) {
-            Some(x) => x,
-            None => return None
-        };
-        let state = KeyButton::get(state_pre);
-        let mode = match NotifyMode::get(mode_pre) {
-            Some(x) => x,
-            None => return None
-        };
-        let (same_screen, focus) = match extra {
-            0x01 => (true, false),
-            0x02 => (false, true),
-            0x03 => (true, true),
-            _ => (false, false)
-        };
-        Some(ServerEvent::EnterNotify { detail, time, root, event, child, root_x, root_y, event_x, event_y, state, mode, same_screen, focus })
-    }
-
-    /** Reads a leave notify from the server (assumes first byte read) */
-    fn read_leave_notify(&mut self, detail_pre: u8) -> Option<ServerEvent> {
-        let (time, root, event, child, root_x, root_y, event_x, event_y, state_pre, mode_pre, extra)
-            = self.read_pointer_event_with_mode();
-        let detail = match NotifyType::get(detail_pre) {
-            Some(x) => x,
-            None => return None
-        };
-        let state = KeyButton::get(state_pre);
-        let mode = match NotifyMode::get(mode_pre) {
-            Some(x) => x,
-            None => return None
-        };
-        let (same_screen, focus) = match extra {
-            0x01 => (true, false),
-            0x02 => (false, true),
-            0x03 => (true, true),
-            _ => (false, false)
-        };
-        Some(ServerEvent::LeaveNotify { detail, time, root, event, child, root_x, root_y, event_x, event_y, state, mode, same_screen, focus })
-    }
-
-    /** Reads an event from the server (assumes first byte read) */
-    fn read_focus_in(&mut self, detail_pre: u8) -> Option<ServerEvent> {
-        let (event, mode_pre, _) = self.read_focus_event();
-        let detail = match FocusType::get(detail_pre) {
-            Some(x) => x,
-            None => return None
-        };
-        let mode = match FocusMode::get(mode_pre) {
-            Some(x) => x,
-            None => return None
-        };
-        Some(ServerEvent::FocusIn { detail, event, mode })
-    }
-
-    /** Reads an event from the server (assumes first byte read) */
-    fn read_focus_out(&mut self, detail_pre: u8) -> Option<ServerEvent> {
-        let (event, mode_pre, _) = self.read_focus_event();
-        let detail = match FocusType::get(detail_pre) {
-            Some(x) => x,
-            None => return None
-        };
-        let mode = match FocusMode::get(mode_pre) {
-            Some(x) => x,
-            None => return None
-        };
-        Some(ServerEvent::FocusIn { detail, event, mode })
-    }
-
-    /** Reads an event from the server (assumes first byte read) */
-    #[allow(unused_variables)]
-    fn read_keymap_notify(&mut self, detail: u8) -> Option<ServerEvent> {
-        panic!("Not implemented yet. Go write an Issue on GitHub please."); // Going to need some research. Doesn't have have a sequence number... is this just 31 bytes?
-    }
-
-    /** Reads an event from the server (assumes first byte read) */
-    fn read_expose(&mut self) -> Option<ServerEvent> {
-        let window = self.read_u32();
-        let x = self.read_u16();
-        let y = self.read_u16();
-        let width = self.read_u16();
-        let height = self.read_u16();
-        let count = self.read_u16();
-        self.read_pad(14);
-        Some(ServerEvent::Expose { window, x, y, width, height, count })
-    }
-
-    /** Reads an event from the server (assumes first byte read) */
-    fn read_graphics_exposure(&mut self) -> Option<ServerEvent> {
-        let drawable = self.read_u32();
-        let x = self.read_u16();
-        let y = self.read_u16();
-        let width = self.read_u16();
-        let height = self.read_u16();
-        let minor_opcode = self.read_u16();
-        let count = self.read_u16();
-        let major_opcode = self.read_u8();
-        self.read_pad(11);
-        Some(ServerEvent::GraphicsExposure { drawable, x, y, width, height, minor_opcode, count, major_opcode })
-    }
-
-    /** Reads an event from the server (assumes first byte read) */
-    fn read_no_exposure(&mut self) -> Option<ServerEvent> {
-        let drawable = self.read_u32();
-        let minor_opcode = self.read_u16();
-        let major_opcode = self.read_u8();
-        self.read_pad(21);
-        Some(ServerEvent::NoExposure { drawable, minor_opcode, major_opcode })
-    }
-
-    /** Reads an event from the server (assumes first byte read) */
-    fn read_visibility_notify(&mut self) -> Option<ServerEvent> {
-        let window = self.read_u32();
-        let state = match VisibilityState::get(self.read_u8()) {
-            Some(x) => x,
-            None => return None
-        };
-        self.read_pad(23);
-        Some(ServerEvent::VisibilityNotify { window, state })
-    }
-
-    /** Reads an event from the server (assumes first byte read) */
-    fn read_create_notify(&mut self) -> Option<ServerEvent> {
-        let parent = self.read_u32();
-        let window = self.read_u32();
-        let x = self.read_i16();
-        let y = self.read_i16();
-        let width = self.read_u16();
-        let height = self.read_u16();
-        let border_width = self.read_u16();
-        let override_redirect = self.read_bool();
-        self.read_pad(9);
-        Some(ServerEvent::CreateNotify { parent, window, x, y, width, height, border_width, override_redirect })
-    }
-
-    /** Reads an event from the server (assumes first byte read) */
-    fn read_destroy_notify(&mut self) -> Option<ServerEvent> {
-        let event = self.read_u32();
-        let window = self.read_u32();
-        self.read_pad(20);
-        Some(ServerEvent::DestroyNotify { event, window })
-    }
-
-    /** Reads an event from the server (assumes first byte read) */
-    fn read_unmap_notify(&mut self) -> Option<ServerEvent> {
-        let event = self.read_u32();
-        let window = self.read_u32();
-        let from_configure = self.read_bool();
-        self.read_pad(19);
-        Some(ServerEvent::UnmapNotify { event, window, from_configure })
-    }
-
-    /** Reads an event from the server (assumes first byte read) */
-    fn read_map_notify(&mut self) -> Option<ServerEvent> {
-        let event = self.read_u32();
-        let window = self.read_u32();
-        let override_redirect = self.read_bool();
-        self.read_pad(19);
-        Some(ServerEvent::MapNotify { event, window, override_redirect })
-    }
-
-    /** Reads an event from the server (assumes first byte read) */
-    fn read_map_request(&mut self) -> Option<ServerEvent> {
-        let parent = self.read_u32();
-        let window = self.read_u32();
-        self.read_pad(20);
-        Some(ServerEvent::MapRequest { parent, window })
-    }
-
-    fn read_reparent_notify(&mut self) -> Option<ServerEvent> {
-        let event = self.read_u32();
-        let window = self.read_u32();
-        let parent = self.read_u32();
-        let x = self.read_i16();
-        let y = self.read_i16();
-        let override_redirect = self.read_bool();
-        self.read_pad(11);
-        Some(ServerEvent::ReparentNotify { event, window, parent, x, y, override_redirect })
-    }
-
-    /** Reads an event from the server (assumes first byte read) */
-    fn read_configure_notify(&mut self) -> Option<ServerEvent> {
-        let event = self.read_u32();
-        let window = self.read_u32();
-        let above_sibling = self.read_u32();
-        let x = self.read_i16();
-        let y = self.read_i16();
-        let width = self.read_u16();
-        let height = self.read_u16();
-        let border_width = self.read_u16();
-        let override_redirect = self.read_bool();
-        self.read_pad(5);
-        Some(ServerEvent::ConfigureNotify { event, window, above_sibling, x, y, width, height, border_width, override_redirect })
-    }
-
-    /** Reads an event from the server (assumes first byte read) */
-    fn read_configure_request(&mut self, stack_mode_pre: u8) -> Option<ServerEvent> {
-        let stack_mode = match StackMode::get(stack_mode_pre) {
-            Some(x) => x,
-            None => return None
-        };
-        let parent = self.read_u32();
-        let window = self.read_u32();
-        let sibling = self.read_u32();
-        let x = self.read_i16();
-        let y = self.read_i16();
-        let width = self.read_u16();
-        let height = self.read_u16();
-        let border_width = self.read_u16();
-        let values = ConfigureRequestValues::get(self.read_u16());
-        self.read_pad(4);
-        Some(ServerEvent::ConfigureRequest { stack_mode, parent, window, sibling, x, y, width, height, border_width, values })
-    }
-
-    /** Reads an event from the server (assumes first byte read) */
-    fn read_gravity_notify(&mut self) -> Option<ServerEvent> {
-        let event = self.read_u32();
-        let window = self.read_u32();
-        let x = self.read_i16();
-        let y = self.read_i16();
-        self.read_pad(16);
-        Some(ServerEvent::GravityNotify { event, window, x, y })
-    }
-
-    /** Reads an event from the server (assumes first byte read) */
-    fn read_resize_request(&mut self) -> Option<ServerEvent> {
-        let window = self.read_u32();
-        let width = self.read_u16();
-        let height = self.read_u16();
-        self.read_pad(20);
-        Some(ServerEvent::ResizeRequest { window, width, height })
-    }
-
-    /** Reads an event from the server (assumes first byte read) */
-    fn read_circulate_notify(&mut self) -> Option<ServerEvent> {
-        let event = self.read_u32();
-        let window = self.read_u32();
-        self.read_pad(4); // Spec says "4 bytes, WINDOW, unused"... wut
-        let place = match CirculatePlace::get(self.read_u8()) {
-            Some(x) => x,
-            None => return None
-        };
-        self.read_pad(15);
-        Some(ServerEvent::CirculateNotify { event, window, place })
-    }
-
-    /** Reads an event from the server (assumes first byte read) */
-    fn read_circulate_request(&mut self) -> Option<ServerEvent> {
-        let parent = self.read_u32();
-        let window = self.read_u32();
-        self.read_pad(4);
-        let place = match CirculatePlace::get(self.read_u8()) {
-            Some(x) => x,
-            None => return None
-        };
-        self.read_pad(15);
-        Some(ServerEvent::CirculateRequest { parent, window, place })
-    }
-
-    /** Reads an event from the server (assumes first byte read) */
-    fn read_property_notify(&mut self) -> Option<ServerEvent> {
-        let window = self.read_u32();
-        let atom = self.read_u32();
-        let time = self.read_u32();
-        let state = match PropertyState::get(self.read_u8()) {
-            Some(x) => x,
-            None => return None
-        };
-        self.read_pad(15);
-        Some(ServerEvent::PropertyNotify { window, atom, time, state })
-    }
-
-    /** Reads an event from the server (assumes first byte read) */
-    fn read_selection_clear(&mut self) -> Option<ServerEvent> {
-        let time = self.read_u32();
-        let owner = self.read_u32();
-        let selection = self.read_u32();
-        self.read_pad(16);
-        Some(ServerEvent::SelectionClear { time, owner, selection })
-    }
-
-    /** Reads an event from the server (assumes first byte read) */
-    fn read_selection_request(&mut self) -> Option<ServerEvent> {
-        let time = self.read_u32();
-        let owner = self.read_u32();
-        let requestor = self.read_u32();
-        let selection = self.read_u32();
-        let target = self.read_u32();
-        let property = self.read_u32();
-        self.read_pad(4);
-        Some(ServerEvent::SelectionRequest { time, owner, requestor, selection, target, property })
-    }
-
-    /** Reads an event from the server (assumes first byte read) */
-    fn read_selection_notify(&mut self) -> Option<ServerEvent> {
-        let time = self.read_u32();
-        let requestor = self.read_u32();
-        let selection = self.read_u32();
-        let target = self.read_u32();
-        let property = self.read_u32();
-        self.read_pad(8);
-        Some(ServerEvent::SelectionNotify { time, requestor, selection, target, property })
-    }
-
-    /** Reads an event from the server (assumes first byte read) */
-    fn read_colormap_notify(&mut self) -> Option<ServerEvent> {
-        let window = self.read_u32();
-        let colormap = self.read_u32();
-        let new = self.read_bool();
-        let state = match ColormapState::get(self.read_u8()) {
-            Some(x) => x,
-            None => return None
-        };
-        self.read_pad(18);
-        Some(ServerEvent::ColormapNotify { window, colormap, new, state})
-    }
-
-    /** Reads an event from the server (assumes first byte read) */
-    fn read_client_message(&mut self, format: u8) -> Option<ServerEvent> {
-        let window = self.read_u32();
-        let mtype = self.read_u32();
-        self.read_pad(20);
-        Some(ServerEvent::ClientMessage { format, window, mtype })
-    }
-
-    /** Reads an event from the server (assumes first byte read) */
-    fn read_mapping_notify(&mut self) -> Option<ServerEvent> {
-        let request = match MappingType::get(self.read_u8()) {
-            Some(x) => x,
-            None => return None
-        };
-        let first_keycode = self.read_char();
-        let count = self.read_u8();
-        self.read_pad(25);
-        Some(ServerEvent::MappingNotify { request, first_keycode, count })
-    }
-}
-
 impl XBufferedWriter for XClient {
     /** Flushes the buffer. */
     fn write_sequence(&mut self) -> u16 {
-        self.buf.flush().unwrap();
+        self.buf_out.flush().unwrap();
         let the_sequence = self.current_sequence;
         self.current_sequence += 1;
         the_sequence
@@ -817,10 +404,10 @@ impl XBufferedWriter for XClient {
     fn write_pad(&mut self, len: usize) {
         match len {
             0 => panic!("Cannot write 0 bytes"),
-            1 => self.buf.write_all(&self.buf_one_byte),
-            2 => self.buf.write_all(&self.buf_two_byte),
-            4 => self.buf.write_all(&self.buf_four_byte),
-            _ => self.buf.write_all(&vec![0u8; len])
+            1 => self.buf_out.write_all(&self.buf_one_byte),
+            2 => self.buf_out.write_all(&self.buf_two_byte),
+            4 => self.buf_out.write_all(&self.buf_four_byte),
+            _ => self.buf_out.write_all(&vec![0u8; len])
         }.unwrap();
     }
 
@@ -832,7 +419,7 @@ impl XBufferedWriter for XClient {
             true => 1,
             false => 0
         };
-        self.buf.write_all(&self.buf_one_byte).unwrap();
+        self.buf_out.write_all(&self.buf_one_byte).unwrap();
     }
 
     /**
@@ -840,7 +427,7 @@ impl XBufferedWriter for XClient {
      */
     fn write_u8(&mut self, input: u8) {
         self.buf_one_byte[0] = input;
-        self.buf.write_all(&self.buf_one_byte).unwrap();
+        self.buf_out.write_all(&self.buf_one_byte).unwrap();
     }
 
     /**
@@ -858,7 +445,7 @@ impl XBufferedWriter for XClient {
     fn write_u16(&mut self, input: u16) {
         self.buf_two_byte[0] = input as u8;
         self.buf_two_byte[1] = (input >> 8) as u8;
-        self.buf.write_all(&self.buf_two_byte).unwrap();
+        self.buf_out.write_all(&self.buf_two_byte).unwrap();
     }
 
     /**
@@ -878,7 +465,7 @@ impl XBufferedWriter for XClient {
         self.buf_four_byte[1] = (input >> 8) as u8;
         self.buf_four_byte[2] = (input >> 16) as u8;
         self.buf_four_byte[3] = (input >> 24) as u8;
-        self.buf.write_all(&self.buf_four_byte).unwrap();
+        self.buf_out.write_all(&self.buf_four_byte).unwrap();
     }
 
     /**
@@ -970,74 +557,5 @@ impl XBufferedWriter for XClient {
         for i in order.iter() {
             values[*i].write(self);
         }
-    }
-
-    /**
-     * Reads X bytes and ignores them.
-     */
-    fn read_pad(&mut self, len: usize) {
-        self.buf.consume(len);
-    }
-
-    /**
-     * Reads a bool from the buffer.
-     */
-    fn read_bool(&mut self) -> bool {
-        self.buf.read_exact(&mut self.buf_one_byte).unwrap();
-        match self.buf_one_byte[0] {
-            1 => true,
-            0 => false,
-            other => panic!("Invalid integer for boolean: {}", other)
-        }
-    }
-
-    /**
-     * Reads a u8 from the buffer.
-     */
-    fn read_u8(&mut self) -> u8 {
-        self.buf.read_exact(&mut self.buf_one_byte).unwrap();
-        self.buf_one_byte[0]
-    }
-
-    /**
-     * Reads an i16 from the buffer.
-     * Expects little endian.
-     */
-    fn read_i16(&mut self) -> i16 {
-        self.read_u16() as i16
-    }
-
-    /**
-     * Reads a u16 from the buffer.
-     * Expects little endian.
-     */
-    fn read_u16(&mut self) -> u16 {
-        self.buf.read_exact(&mut self.buf_two_byte).unwrap();
-        (self.buf_two_byte[0] as u16) + ((self.buf_two_byte[1] as u16) << 8)
-    }
-
-    /**
-     * Reads a u32 from the buffer.
-     * Expects little endian.
-     */
-    fn read_u32(&mut self) -> u32 {
-        self.buf.read_exact(&mut self.buf_four_byte).unwrap();
-        (self.buf_four_byte[0] as u32) + ((self.buf_four_byte[1] as u32) << 8) + ((self.buf_four_byte[2] as u32) << 16) + ((self.buf_four_byte[3] as u32) << 24)
-    }
-
-    /**
-     * Reads a one-byte characters from the buffer.
-     */
-    fn read_char(&mut self) -> char {
-        self.read_u8() as char
-    }
-
-    /**
-     * Reads a string from the buffer.
-     */
-    fn read_str(&mut self, len: usize) -> String {
-        let mut buf = vec![0u8; len];
-        self.buf.read_exact(&mut buf).unwrap();
-        String::from_utf8(buf).unwrap()
     }
 }
