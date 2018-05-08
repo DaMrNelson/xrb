@@ -27,4 +27,4 @@ Using this to track what I have done in case I ever want to write something abou
         - Create a new thread that constantly reads messages from the X Server and forwards them to the main thread
     - Work on implementing replies
         - Track sequence number
-        - TODO: Continue this!
+        - Implement GetWindowAttributes (first one I saw) and ListFontsWithInfo (returns multiple, so good for testing that feature)

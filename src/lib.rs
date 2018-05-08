@@ -15,13 +15,14 @@ use self::xreaderwriter::{XBufferedWriter, XBufferedReader, XReadHelper};
 pub struct XClient {
     pub connected: bool,
     pub connect_info: ConnectInfo,
-    pub current_sequence: u16,
     buf_out: BufWriter<UnixStream>,
-    receiver: mpsc::Receiver<ServerResponse>,
+    resp_receiver: mpsc::Receiver<ServerResponse>, // Receive errors, replies, and events from the X Server
+    sq_sender: mpsc::Sender<(u16, ServerReplyType)>, // Send sequence IDs to the reader thread so it can properly parse replies
+    next_resource_id: u32,
+    current_sequence: u16,
     buf_one_byte: Vec<u8>,
     buf_two_byte: Vec<u8>,
-    buf_four_byte: Vec<u8>,
-    next_resource_id: u32
+    buf_four_byte: Vec<u8>
 }
 
 impl XClient {
@@ -32,24 +33,26 @@ impl XClient {
      */
     pub fn connect(host: String) -> XClient {
         let stream = UnixStream::connect(host).unwrap();
-        let (sender, receiver) = mpsc::channel();
+        let (resp_sender, resp_receiver) = mpsc::channel();
+        let (sq_sender, sq_receiver) = mpsc::channel();
         let mut client = XClient {
             connected: false,
             connect_info: ConnectInfo::empty(),
-            current_sequence: 0,
             buf_out: BufWriter::new(stream),
-            receiver: receiver,
+            resp_receiver: resp_receiver,
+            sq_sender: sq_sender,
+            next_resource_id: 0,
+            current_sequence: 0,
             buf_one_byte: vec![0u8; 1],
             buf_two_byte: vec![0u8; 2],
-            buf_four_byte: vec![0u8; 4],
-            next_resource_id: 0
+            buf_four_byte: vec![0u8; 4]
         };
-        client.setup(sender);
+        client.setup(resp_sender, sq_receiver);
         client
     }
 
     /** Sends the connection parameters and returns if it connected or not. */
-    fn setup(&mut self, sender: mpsc::Sender<ServerResponse>) {
+    fn setup(&mut self, resp_sender: mpsc::Sender<ServerResponse>, sq_receiver: mpsc::Receiver<(u16, ServerReplyType)>) {
         let mut reader = XReadHelper::new(
             BufReader::new(
                 self.buf_out.get_ref().try_clone().unwrap()
@@ -69,7 +72,7 @@ impl XClient {
             self.write_pad(1); // Pad empty string
             self.write_pad(1); // Pad empty string
 
-            self.write_sequence();
+            self.write_sequence(ServerReplyType::None);
         }
 
         // Read response header
@@ -196,7 +199,7 @@ impl XClient {
 
         // Start event receiving thread
         {
-            thread::spawn(move || { // Moves `sender` and `reader`
+            thread::spawn(move || { // Moves `resp_sender`, `sq_receiver`, and `reader`
                 loop {
                     // Read header
                     let opcode = reader.read_u8();
@@ -211,9 +214,25 @@ impl XClient {
                             }
                         },
                         protocol::REPLY_REPLY => ServerResponse::Reply({
-                            // TODO: Parse different types of replies
-                            // Probably keep a list of all requests made (using another mpsc channel) and match the sequence numbers to determine what object to parse replies into.
-                            panic!("Server replies not implemented yet.");
+                            let reply_length = reader.read_u32();
+                            let (seq, method) = sq_receiver.recv().unwrap();
+
+                            if seq == sequence_number {
+                                match match method {
+                                    ServerReplyType::GetWindowAttributes => reader.read_get_window_attributes_reply(detail),
+                                    ServerReplyType::ListFontsWithInfo => reader.read_list_fonts_with_info_reply(detail),
+                                    // TODO: More
+                                    _ => panic!("Reply not implemented yet.")
+                                } {
+                                    Some(x) => x,
+                                    None => continue
+                                }
+                            } else {
+                                eprintln!("Unexpected reply sequence. Expected {}, got {}. Will not attempt to parse.", sequence_number, seq);
+                                eprintln!("If this occurs again after restarting the server please submit an issue to: https://github.com/DaMrNelson/xrb");
+                                reader.read_pad((32 - 4 + reply_length * 4) as usize);
+                                continue
+                            }
                         }, sequence_number),
                         other => ServerResponse::Event(
                             match match other { // MY EYES
@@ -258,7 +277,7 @@ impl XClient {
                         , sequence_number)
                     };
 
-                    match sender.send(response) {
+                    match resp_sender.send(response) {
                         Ok(_) => (),
                         Err(e) => eprintln!("Failed to forward error, reply, or event to main thread: {:?}", e)
                     }
@@ -287,7 +306,7 @@ impl XClient {
      */
     pub fn wait_for_message(&mut self) -> ServerResponse {
         loop {
-            match self.receiver.recv() {
+            match self.resp_receiver.recv() {
                 Ok(x) => return x,
                 Err(e) => eprintln!("Failed to get message from the receiver. Will try again. Error: {:?}", e)
             };
@@ -299,7 +318,7 @@ impl XClient {
      * Use wait_for_message to block until a new message is received.
      */
     pub fn get_message(&mut self) -> Option<ServerResponse> {
-        match self.receiver.try_recv() {
+        match self.resp_receiver.try_recv() {
             Ok(x) => Some(x),
             Err(_) => None
         }
@@ -328,7 +347,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u32(window.visual_id);
         self.write_values(&window.values);
 
-        self.write_sequence()
+        self.write_sequence(ServerReplyType::None)
     }
 
     /** Tells the X Server to change a window's attributes */
@@ -340,7 +359,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u32(wid);
         self.write_values(&values);
 
-        self.write_sequence()
+        self.write_sequence(ServerReplyType::None)
     }
 
     /** Tells the X Server to send us the window's attributes */
@@ -350,7 +369,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u16(2);
         self.write_u32(wid);
 
-        self.write_sequence()
+        self.write_sequence(ServerReplyType::GetWindowAttributes)
     }
 
     /** Tells the X Server to map a window (makes it visible I think) */
@@ -360,7 +379,23 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u16(2);
         self.write_u32(window);
 
-        self.write_sequence()
+        self.write_sequence(ServerReplyType::None)
+    }
+
+    /** Lists all fonts with the given info */
+    pub fn list_fonts_with_info(&mut self, max_names: u16, pattern: &str) -> u16 {
+        self.write_u8(protocol::OP_LIST_FONTS_WITH_INFO);
+        self.write_pad(1);
+        self.write_u16(2 + (pattern.len() + pattern.len() % 4) as u16 / 4);
+        self.write_u16(max_names);
+        self.write_u16(pattern.len() as u16);
+        self.write_str(pattern);
+        match pattern.len() % 4 {
+            0 => (),
+            pad => self.write_pad(pad)
+        };
+
+        self.write_sequence(ServerReplyType::ListFontsWithInfo)
     }
 
     /** Tells the X Server to create a pixmap */
@@ -373,7 +408,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u16(pixmap.width);
         self.write_u16(pixmap.height);
 
-        self.write_sequence()
+        self.write_sequence(ServerReplyType::None)
     }
 
     /** Tells the X Server to create a graphics context */
@@ -385,13 +420,17 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u32(gc.drawable);
         self.write_values(&gc.values);
 
-        self.write_sequence()
+        self.write_sequence(ServerReplyType::None)
     }
 }
 
 impl XBufferedWriter for XClient {
     /** Flushes the buffer. */
-    fn write_sequence(&mut self) -> u16 {
+    fn write_sequence(&mut self, rtype: ServerReplyType) -> u16 {
+        match rtype {
+            ServerReplyType::None => (),
+            _ => self.sq_sender.send((self.current_sequence, rtype)).unwrap()
+        };
         self.buf_out.flush().unwrap();
         let the_sequence = self.current_sequence;
         self.current_sequence += 1;
@@ -466,6 +505,17 @@ impl XBufferedWriter for XClient {
         self.buf_four_byte[2] = (input >> 16) as u8;
         self.buf_four_byte[3] = (input >> 24) as u8;
         self.buf_out.write_all(&self.buf_four_byte).unwrap();
+    }
+
+    /**
+     * Writes a string to the buffer.
+     * This does not write the length of the string or any padding required after it.
+     */
+    fn write_str(&mut self, input: &str) {
+        match input.len() {
+            0 => (),
+            _ => self.buf_out.write_all(input.as_bytes()).unwrap()
+        };
     }
 
     /**

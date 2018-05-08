@@ -66,6 +66,10 @@ mod tests {
         // Map the window (make it visible)
         client.map_window(window.wid);
 
+        // Test replies
+        client.get_window_attributes(window.wid);
+        //client.list_fonts_with_info(5, "");
+
         // Main event loop
         loop {
             match client.wait_for_message() {
