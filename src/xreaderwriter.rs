@@ -6,7 +6,7 @@ use std::io::prelude::*;
 use std::io::{BufReader};
 
 pub trait XBufferedWriter {
-    fn write_sequence(&mut self) -> u16;
+    fn write_sequence(&mut self, rtype: ServerReplyType) -> u16;
     fn write_pad(&mut self, len: usize);
     fn write_bool(&mut self, input: bool);
     fn write_u8(&mut self, input: u8);
@@ -14,6 +14,7 @@ pub trait XBufferedWriter {
     fn write_u16(&mut self, input: u16);
     fn write_i32(&mut self, input: i32);
     fn write_u32(&mut self, input: u32);
+    fn write_str(&mut self, input: &str);
     fn write_val_bool(&mut self, input: bool);
     fn write_val_u8(&mut self, input: u8);
     fn write_val_i16(&mut self, input: i16);
@@ -80,6 +81,98 @@ impl XReadHelper {
             protocol::ERROR_LENGTH => Some(ServerError::Length { minor_opcode, major_opcode }),
             protocol::ERROR_IMPLEMENTATION => Some(ServerError::Implementation { minor_opcode, major_opcode }),
             _ => None
+        }
+    }
+
+    /** Reads a reply to GetWindowAttributes */
+    pub fn read_get_window_attributes_reply(&mut self, backing_store_pre: u8) -> Option<ServerReply> {
+        let backing_store = match WindowBackingStore::get(backing_store_pre) {
+            Some(x) => x,
+            None => return None
+        };
+        let visual = self.read_u32();
+        let class = match WindowInputType::get(self.read_u16()) {
+            Some(x) => x,
+            None => return None
+        };
+        let bit_gravity = match BitGravity::get(self.read_u8()) {
+            Some(x) => x,
+            None => return None
+        };
+        let window_gravity = match WindowGravity::get(self.read_u8()) {
+            Some(x) => x,
+            None => return None
+        };
+        let backing_planes = self.read_u32();
+        let backing_pixel = self.read_u32();
+        let save_under = self.read_bool();
+        let map_is_installed = self.read_bool();
+        let map_state = match MapState::get(self.read_u8()) {
+            Some(x) => x,
+            None => return None
+        };
+        let override_redirect = self.read_bool();
+        let colormap = self.read_u32();
+        let all_event_masks = self.read_u32();
+        let your_event_mask = self.read_u32();
+        let do_not_propagate_mask = self.read_u16();
+        self.read_pad(2);
+        Some(ServerReply::GetWindowAttributes { backing_store, visual, class, bit_gravity, window_gravity, backing_planes, backing_pixel, save_under, map_is_installed, map_state, override_redirect, colormap, all_event_masks, your_event_mask, do_not_propagate_mask })
+    }
+
+    /** Reads character info */
+    fn read_char_info(&mut self) -> CharInfo {
+        return CharInfo {
+            left_side_bearing: self.read_i16(),
+            right_side_bearingL: self.read_i16(),
+            character_width: self.read_i16(),
+            ascent: self.read_i16(),
+            descent: self.read_i16(),
+            attributes: self.read_u16()
+        }
+    }
+
+    /** Reads a single reply to ListFontsWithInfo (may have multiple) */
+    pub fn read_list_fonts_with_info_reply(&mut self, name_len: u8) -> Option<ServerReply> {
+        if name_len == 0 { // Last entry
+            self.read_pad(52);
+            Some(ServerReply::ListFontsWithInfoEnd)
+        } else {
+            let len = self.read_u16();
+            let min_bounds = self.read_char_info();
+            self.read_pad(4);
+            let max_bounds = self.read_char_info();
+            self.read_pad(4);
+            let min_char = self.read_u16();
+            let max_char = self.read_u16();
+            let default_char = self.read_u16();
+            let num_font_props = self.read_u16();
+            let draw_direction = match FontDrawDirection::get(self.read_u8()) {
+                Some(x) => x,
+                None => return None
+            };
+            let min_byte = self.read_u8();
+            let max_byte = self.read_u8();
+            let all_chars_exist = self.read_bool();
+            let font_ascent = self.read_i16();
+            let font_descent = self.read_i16();
+            let replies_hint = self.read_u32();
+            let mut properties = vec![];
+
+            for _ in 0..num_font_props {
+                properties.push(FontProperty {
+                    name: self.read_u32(),
+                    value: self.read_u32()
+                });
+            }
+
+            let name = self.read_str(name_len as usize);
+            match name_len % 4 {
+                0 => (),
+                pad => self.read_pad(pad as usize)
+            };
+
+            Some(ServerReply::ListFontsWithInfoEntry { min_bounds, max_bounds, min_char, max_char, default_char, draw_direction, min_byte, max_byte, all_chars_exist, font_ascent, font_descent, replies_hint, properties, name })
         }
     }
 

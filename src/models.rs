@@ -239,6 +239,22 @@ impl Visual {
 }
 
 #[derive(Debug)]
+pub struct CharInfo {
+    pub left_side_bearing: i16,
+    pub right_side_bearingL: i16,
+    pub character_width: i16,
+    pub ascent: i16,
+    pub descent: i16,
+    pub attributes: u16
+}
+
+#[derive(Debug)]
+pub struct FontProperty {
+    pub name: u32,
+    pub value: u32
+}
+
+#[derive(Debug)]
 pub enum ServerError {
     Request { minor_opcode: u16, major_opcode: u8 },
     Value { minor_opcode: u16, major_opcode: u8, bad_value: u32 },
@@ -260,8 +276,88 @@ pub enum ServerError {
 }
 
 #[derive(Debug)]
+pub enum ServerReplyType { // Used to specify a ServerReply type without creating the entire object
+    GetWindowAttributes,
+    GetGeometry,
+    QueryTree,
+    InternAtom,
+    GetAtomName,
+    GetProperty,
+    ListProperties,
+    GetSelectionOwner,
+    GrabPointer,
+    GrabKeyboard,
+    QueryPointer,
+    GetMotionEvents,
+    TranslateCoordinates,
+    GetInputFocus,
+    QueryKeymap,
+    QueryFont,
+    QueryTextExtents,
+    ListFonts,
+    ListFontsWithInfo, // Note: One request will generate multiple replies here. The info specifies how to determine this
+    GetFontPath,
+    GetImage,
+    ListInstalledColormaps,
+    AllocColor,
+    AllocNamedColor,
+    AllocColorCells,
+    AllocColorPlanes,
+    QueryColors,
+    LookupColor,
+    QueryBestSize,
+    QueryExtension,
+    ListExtensions,
+    GetKeyboardMapping,
+    GetKeyboardControl,
+    GetPointerControl,
+    GetScreenSaver,
+    ListHosts,
+    SetPointerMapping,
+    GetPointerMapping,
+    SetModifierMapping,
+    GetModifierMapping,
+    BadReply,
+    None
+}
+
+#[derive(Debug)]
 pub enum ServerReply {
-    // TDOO: These
+    GetWindowAttributes {
+        backing_store: WindowBackingStore,
+        visual: u32,
+        class: WindowInputType,
+        bit_gravity: BitGravity,
+        window_gravity: WindowGravity,
+        backing_planes: u32,
+        backing_pixel: u32,
+        save_under: bool,
+        map_is_installed: bool,
+        map_state: MapState,
+        override_redirect: bool,
+        colormap: u32,
+        all_event_masks: u32,
+        your_event_mask: u32,
+        do_not_propagate_mask: u16
+    },
+    ListFontsWithInfoEntry {
+        min_bounds: CharInfo,
+        max_bounds: CharInfo,
+        min_char: u16,
+        max_char: u16,
+        default_char: u16,
+        draw_direction: FontDrawDirection,
+        min_byte: u8,
+        max_byte: u8,
+        all_chars_exist: bool,
+        font_ascent: i16,
+        font_descent: i16,
+        replies_hint: u32,
+        properties: Vec<FontProperty>,
+        name: String
+    },
+    ListFontsWithInfoEnd // End marker for ListFontsWithInfoEntry
+    // TODO: The rest
 }
 
 #[derive(Debug)]
@@ -738,6 +834,16 @@ pub enum WindowInputType {
     InputOutput,
     InputOnly
 }
+impl WindowInputType {
+    pub fn get(id: u16) -> Option<WindowInputType> {
+        match id {
+            0 => Some(WindowInputType::CopyFromParent),
+            1 => Some(WindowInputType::InputOutput),
+            2 => Some(WindowInputType::InputOnly),
+            _ => None
+        }
+    }
+}
 impl Valued for WindowInputType {
     fn val(&self) -> u32 {
         match self {
@@ -749,17 +855,27 @@ impl Valued for WindowInputType {
 }
 
 #[derive(Debug)]
-pub enum WindowValueBackingStore {
+pub enum WindowBackingStore {
     NotUseful,
     WhenMapped,
     Always
 }
-impl Valued for WindowValueBackingStore {
+impl WindowBackingStore {
+    pub fn get(id: u8) -> Option<WindowBackingStore> {
+        match id {
+            0 => Some(WindowBackingStore::NotUseful),
+            1 => Some(WindowBackingStore::WhenMapped),
+            2 => Some(WindowBackingStore::Always),
+            _ => None
+        }
+    }
+}
+impl Valued for WindowBackingStore {
     fn val(&self) -> u32 {
         match self {
-            &WindowValueBackingStore::NotUseful => 0,
-            &WindowValueBackingStore::WhenMapped => 1,
-            &WindowValueBackingStore::Always => 2
+            &WindowBackingStore::NotUseful => 0,
+            &WindowBackingStore::WhenMapped => 1,
+            &WindowBackingStore::Always => 2
         }
     }
 }
@@ -777,6 +893,24 @@ pub enum BitGravity {
 	SouthWest,
 	South,
 	SouthEast
+}
+impl BitGravity {
+    pub fn get(id: u8) -> Option<BitGravity> {
+        match id {
+            0 => Some(BitGravity::Forget),
+            1 => Some(BitGravity::Static),
+            2 => Some(BitGravity::NorthWest),
+            3 => Some(BitGravity::North),
+            4 => Some(BitGravity::NorthEast),
+            5 => Some(BitGravity::West),
+            6 => Some(BitGravity::Center),
+            7 => Some(BitGravity::East),
+            8 => Some(BitGravity::SouthWest),
+            9 => Some(BitGravity::South),
+            10 => Some(BitGravity::SouthEast),
+            _ => None
+        }
+    }
 }
 impl Valued for BitGravity {
     fn val(&self) -> u32 {
@@ -810,6 +944,24 @@ pub enum WindowGravity {
 	South,
 	SouthEast
 }
+impl WindowGravity {
+    pub fn get(id: u8) -> Option<WindowGravity> {
+        match id {
+            0 => Some(WindowGravity::Unmap),
+            1 => Some(WindowGravity::Static),
+            2 => Some(WindowGravity::NorthWest),
+            3 => Some(WindowGravity::North),
+            4 => Some(WindowGravity::NorthEast),
+            5 => Some(WindowGravity::West),
+            6 => Some(WindowGravity::Center),
+            7 => Some(WindowGravity::East),
+            8 => Some(WindowGravity::SouthWest),
+            9 => Some(WindowGravity::South),
+            10 => Some(WindowGravity::SouthEast),
+            _ => None
+        }
+    }
+}
 impl Valued for WindowGravity {
     fn val(&self) -> u32 {
         match self {
@@ -824,6 +976,38 @@ impl Valued for WindowGravity {
             &WindowGravity::SouthWest => 8,
             &WindowGravity::South => 9,
             &WindowGravity::SouthEast => 10
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum MapState {
+    Unmapped,
+    Unviewable,
+    Viewable
+}
+impl MapState {
+    pub fn get(id: u8) -> Option<MapState> {
+        match id {
+            0 => Some(MapState::Unmapped),
+            1 => Some(MapState::Unviewable),
+            2 => Some(MapState::Viewable),
+            _ => None
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum FontDrawDirection {
+    LeftToRight,
+    RightToLeft
+}
+impl FontDrawDirection {
+    pub fn get(id: u8) -> Option<FontDrawDirection> {
+        match id {
+            0 => Some(FontDrawDirection::LeftToRight),
+            1 => Some(FontDrawDirection::RightToLeft),
+            _ => None
         }
     }
 }
@@ -1297,7 +1481,7 @@ pub enum WindowValue {
     BorderPixel(u32),
     BitGravity(BitGravity),
     WinGravity(WindowGravity),
-    BackingStore(WindowValueBackingStore),
+    BackingStore(WindowBackingStore),
     BackingPlanes(u32),
     BackingPixel(u32),
     OverrideRedirect(bool),

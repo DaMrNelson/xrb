@@ -23,6 +23,12 @@ See tests/main.rs for some example usage.
     - Responds with replies, errors, and events
 
 # TODO
+    - In read_ functions don't just return when a parameter doesn't validate. If the length parameter is read, make sure the entire thing is read at least to avoid issues.
+        - I have done this so much. Gonna take some fixing :'(
+        - Possible solution:
+            - Read in expected length
+            - Make read_... use that read in data
+            - Should work since everything uses just a few formats, all of which include the message's length
     - Replies (Crl+F "▶")
         - Also figure out how replies are separated from each other. Is it by sequence_number?
     - read_keymap_notify
