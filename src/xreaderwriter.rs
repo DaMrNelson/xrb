@@ -1,6 +1,7 @@
 use models::*;
 use protocol;
 
+use std::str;
 use std::os::unix::net::UnixStream;
 use std::io::prelude::*;
 use std::io::{BufReader};
@@ -36,25 +37,46 @@ pub trait XBufferedReader {
     fn read_str(&mut self, len: usize) -> String;
 }
 
+/**
+ * Helps to read X 11 messages.
+ * Usage:
+ *     1. Specify the number of bytes you are planning to read: prep_read(len)
+ *        This will read those bytes into a buffer. read_* operations read from this buffer.
+ *        A future prep_read will replace this buffer, regardless of how many bytes have been read from it.
+ *        This is useful because you can stop reading at any time (ie if you find a bad character) and it will continue reading the next bit properly.
+ *     2. Use read_* and prep_read_extend (for when you want to add X more bytes to the current buffer)
+ */
 pub struct XReadHelper {
-    buf_in: BufReader<UnixStream>,
-    buf_one_byte: Vec<u8>,
-    buf_two_byte: Vec<u8>,
-    buf_four_byte: Vec<u8>
+    xin: UnixStream,
+    buf: Vec<u8>,
+    pos: usize
 }
 
 impl XReadHelper {
-    pub fn new(buf_in: BufReader<UnixStream>) -> XReadHelper {
+    pub fn new(xin: UnixStream) -> XReadHelper {
         XReadHelper {
-            buf_in,
-            buf_one_byte: vec![0u8; 1],
-            buf_two_byte: vec![0u8; 2],
-            buf_four_byte: vec![0u8; 4]
+            xin,
+            buf: Vec::with_capacity(500), // 500 bytes as default max message length (although this should expand as needed)
+            pos: 0
         }
     }
 }
 
 impl XReadHelper {
+    /** Reads the given bytes into the internal buffer */
+    pub fn prep_read(&mut self, len: usize) {
+        self.buf.resize(len, 0);
+        self.xin.read_exact(&mut self.buf).unwrap();
+        self.pos = 0;
+    }
+
+    /** Like prep_read, except it extends the current buffer by X bytes instead of replacing it, and does not reset pos */
+    pub fn prep_read_extend(&mut self, len: usize) {
+        let original_len = self.buf.len();
+        self.buf.resize(original_len + len, 0);
+        self.xin.read_exact(&mut self.buf[original_len..]).unwrap();
+    }
+
     /** Reads an error from the server (assumes first byte read) */
     pub fn read_error(&mut self, code: u8) -> Option<ServerError> {
         let info = self.read_u32(); // Always u32 or unused
@@ -613,27 +635,29 @@ impl XBufferedReader for XReadHelper {
      * Reads X bytes and ignores them.
      */
     fn read_pad(&mut self, len: usize) {
-        self.buf_in.consume(len);
+        self.pos += len;
     }
 
     /**
      * Reads a bool from the buffer.
      */
     fn read_bool(&mut self) -> bool {
-        self.buf_in.read_exact(&mut self.buf_one_byte).unwrap();
-        match self.buf_one_byte[0] {
+        let x = match self.buf[self.pos] {
             1 => true,
             0 => false,
             other => panic!("Invalid integer for boolean: {}", other)
-        }
+        };
+        self.pos += 1;
+        x
     }
 
     /**
      * Reads a u8 from the buffer.
      */
     fn read_u8(&mut self) -> u8 {
-        self.buf_in.read_exact(&mut self.buf_one_byte).unwrap();
-        self.buf_one_byte[0]
+        let x = self.buf[self.pos];
+        self.pos += 1;
+        x
     }
 
     /**
@@ -649,8 +673,9 @@ impl XBufferedReader for XReadHelper {
      * Expects little endian.
      */
     fn read_u16(&mut self) -> u16 {
-        self.buf_in.read_exact(&mut self.buf_two_byte).unwrap();
-        (self.buf_two_byte[0] as u16) + ((self.buf_two_byte[1] as u16) << 8)
+        let x = (self.buf[self.pos] as u16) + ((self.buf[self.pos + 1] as u16) << 8);
+        self.pos += 2;
+        x
     }
 
     /**
@@ -658,8 +683,9 @@ impl XBufferedReader for XReadHelper {
      * Expects little endian.
      */
     fn read_u32(&mut self) -> u32 {
-        self.buf_in.read_exact(&mut self.buf_four_byte).unwrap();
-        (self.buf_four_byte[0] as u32) + ((self.buf_four_byte[1] as u32) << 8) + ((self.buf_four_byte[2] as u32) << 16) + ((self.buf_four_byte[3] as u32) << 24)
+        let x = (self.buf[self.pos] as u32) + ((self.buf[self.pos + 1] as u32) << 8) + ((self.buf[self.pos + 2] as u32) << 16) + ((self.buf[self.pos + 3] as u32) << 24);
+        self.pos += 4;
+        x
     }
 
     /**
@@ -673,8 +699,8 @@ impl XBufferedReader for XReadHelper {
      * Reads a string from the buffer.
      */
     fn read_str(&mut self, len: usize) -> String {
-        let mut buf = vec![0u8; len];
-        self.buf_in.read_exact(&mut buf).unwrap();
-        String::from_utf8(buf).unwrap()
+        let x = String::from(str::from_utf8(&self.buf[self.pos..self.pos + len]).unwrap());
+        self.pos += len;
+        x
     }
 }

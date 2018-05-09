@@ -53,11 +53,7 @@ impl XClient {
 
     /** Sends the connection parameters and returns if it connected or not. */
     fn setup(&mut self, resp_sender: mpsc::Sender<ServerResponse>, sq_receiver: mpsc::Receiver<(u16, ServerReplyType)>) {
-        let mut reader = XReadHelper::new(
-            BufReader::new(
-                self.buf_out.get_ref().try_clone().unwrap()
-            )
-        );
+        let mut reader = XReadHelper::new(self.buf_out.get_ref().try_clone().unwrap());
 
         // Send connection string
         {
@@ -78,6 +74,7 @@ impl XClient {
         // Read response header
         {
             // Read the head
+            reader.prep_read(8);
             self.connect_info.status_code = reader.read_u8();
             reader.read_pad(1);
             self.connect_info.protocol_major_version = reader.read_u16();
@@ -95,6 +92,7 @@ impl XClient {
 
             // Parse success info
             println!("Server Protocol: {}.{}", self.connect_info.protocol_major_version, self.connect_info.protocol_minor_version);
+            reader.prep_read((self.connect_info.additional_data_len * 4) as usize);
             self.connect_info.release_number = reader.read_u32();
             self.connect_info.resource_id_base = reader.read_u32();
             self.connect_info.resource_id_mask = reader.read_u32();
@@ -202,6 +200,7 @@ impl XClient {
             thread::spawn(move || { // Moves `resp_sender`, `sq_receiver`, and `reader`
                 loop {
                     // Read header
+                    reader.prep_read(32); // All are *at least* 32 bytes
                     let opcode = reader.read_u8();
                     let detail = reader.read_u8();
                     let sequence_number = reader.read_u16();
@@ -215,6 +214,7 @@ impl XClient {
                         },
                         protocol::REPLY_REPLY => ServerResponse::Reply({
                             let reply_length = reader.read_u32();
+                            reader.prep_read_extend((reply_length * 4) as usize); // Add additional length
                             let (seq, method) = sq_receiver.recv().unwrap();
 
                             if seq == sequence_number {
@@ -234,47 +234,49 @@ impl XClient {
                                 continue
                             }
                         }, sequence_number),
-                        other => ServerResponse::Event(
-                            match match other { // MY EYES
-                                protocol::REPLY_KEY_PRESS => reader.read_key_press(detail),
-                                protocol::REPLY_KEY_RELEASE => reader.read_key_release(detail),
-                                protocol::REPLY_BUTTON_PRESS => reader.read_button_press(detail),
-                                protocol::REPLY_BUTTON_RELEASE => reader.read_button_release(detail),
-                                protocol::REPLY_MOTION_NOTIFY => reader.read_motion_notify(detail),
-                                protocol::REPLY_ENTER_NOTIFY => reader.read_enter_notify(detail),
-                                protocol::REPLY_LEAVE_NOTIFY => reader.read_leave_notify(detail),
-                                protocol::REPLY_FOCUS_IN => reader.read_focus_in(detail),
-                                protocol::REPLY_FOCUS_OUT => reader.read_focus_out(detail),
-                                protocol::REPLY_KEYMAP_NOTIFY => reader.read_keymap_notify(detail),
-                                protocol::REPLY_EXPOSE => reader.read_expose(),
-                                protocol::REPLY_GRAPHICS_EXPOSURE => reader.read_graphics_exposure(),
-                                protocol::REPLY_NO_EXPOSURE => reader.read_no_exposure(),
-                                protocol::REPLY_VISIBILITY_NOTIFY => reader.read_visibility_notify(),
-                                protocol::REPLY_CREATE_NOTIFY => reader.read_create_notify(),
-                                protocol::REPLY_DESTROY_NOTIFY => reader.read_destroy_notify(),
-                                protocol::REPLY_UNMAP_NOTIFY => reader.read_unmap_notify(),
-                                protocol::REPLY_MAP_NOTIFY => reader.read_map_notify(),
-                                protocol::REPLY_MAP_REQUEST => reader.read_map_request(),
-                                protocol::REPLY_REPART_NOTIFY => reader.read_reparent_notify(),
-                                protocol::REPLY_CONFIGURE_NOTIFY => reader.read_configure_notify(),
-                                protocol::REPLY_CONFIGURE_REQUEST => reader.read_configure_request(detail),
-                                protocol::REPLY_GRAVITY_NOTIFY => reader.read_gravity_notify(),
-                                protocol::REPLY_RESIZE_REQUEST => reader.read_resize_request(),
-                                protocol::REPLY_CIRCULATE_NOTIFY => reader.read_circulate_notify(),
-                                protocol::REPLY_CIRCULATE_REQUEST => reader.read_circulate_request(),
-                                protocol::REPLY_PROPERTY_NOTIFY => reader.read_property_notify(),
-                                protocol::REPLY_SELECTION_CLEAR => reader.read_selection_clear(),
-                                protocol::REPLY_SELECTION_REQUEST => reader.read_selection_request(),
-                                protocol::REPLY_SELECTION_NOTIFY => reader.read_selection_notify(),
-                                protocol::REPLY_COLORMAP_NOTIFY => reader.read_colormap_notify(),
-                                protocol::REPLY_CLIENT_MESSAGE => reader.read_client_message(detail),
-                                protocol::REPLY_MAPPING_NOTIFY => reader.read_mapping_notify(),
-                                _ => continue
-                            } {
-                                Some(event) => event,
-                                None => continue
-                            }
-                        , sequence_number)
+                        other => {
+                            ServerResponse::Event(
+                                match match other { // MY EYES
+                                    protocol::REPLY_KEY_PRESS => reader.read_key_press(detail),
+                                    protocol::REPLY_KEY_RELEASE => reader.read_key_release(detail),
+                                    protocol::REPLY_BUTTON_PRESS => reader.read_button_press(detail),
+                                    protocol::REPLY_BUTTON_RELEASE => reader.read_button_release(detail),
+                                    protocol::REPLY_MOTION_NOTIFY => reader.read_motion_notify(detail),
+                                    protocol::REPLY_ENTER_NOTIFY => reader.read_enter_notify(detail),
+                                    protocol::REPLY_LEAVE_NOTIFY => reader.read_leave_notify(detail),
+                                    protocol::REPLY_FOCUS_IN => reader.read_focus_in(detail),
+                                    protocol::REPLY_FOCUS_OUT => reader.read_focus_out(detail),
+                                    protocol::REPLY_KEYMAP_NOTIFY => reader.read_keymap_notify(detail),
+                                    protocol::REPLY_EXPOSE => reader.read_expose(),
+                                    protocol::REPLY_GRAPHICS_EXPOSURE => reader.read_graphics_exposure(),
+                                    protocol::REPLY_NO_EXPOSURE => reader.read_no_exposure(),
+                                    protocol::REPLY_VISIBILITY_NOTIFY => reader.read_visibility_notify(),
+                                    protocol::REPLY_CREATE_NOTIFY => reader.read_create_notify(),
+                                    protocol::REPLY_DESTROY_NOTIFY => reader.read_destroy_notify(),
+                                    protocol::REPLY_UNMAP_NOTIFY => reader.read_unmap_notify(),
+                                    protocol::REPLY_MAP_NOTIFY => reader.read_map_notify(),
+                                    protocol::REPLY_MAP_REQUEST => reader.read_map_request(),
+                                    protocol::REPLY_REPART_NOTIFY => reader.read_reparent_notify(),
+                                    protocol::REPLY_CONFIGURE_NOTIFY => reader.read_configure_notify(),
+                                    protocol::REPLY_CONFIGURE_REQUEST => reader.read_configure_request(detail),
+                                    protocol::REPLY_GRAVITY_NOTIFY => reader.read_gravity_notify(),
+                                    protocol::REPLY_RESIZE_REQUEST => reader.read_resize_request(),
+                                    protocol::REPLY_CIRCULATE_NOTIFY => reader.read_circulate_notify(),
+                                    protocol::REPLY_CIRCULATE_REQUEST => reader.read_circulate_request(),
+                                    protocol::REPLY_PROPERTY_NOTIFY => reader.read_property_notify(),
+                                    protocol::REPLY_SELECTION_CLEAR => reader.read_selection_clear(),
+                                    protocol::REPLY_SELECTION_REQUEST => reader.read_selection_request(),
+                                    protocol::REPLY_SELECTION_NOTIFY => reader.read_selection_notify(),
+                                    protocol::REPLY_COLORMAP_NOTIFY => reader.read_colormap_notify(),
+                                    protocol::REPLY_CLIENT_MESSAGE => reader.read_client_message(detail),
+                                    protocol::REPLY_MAPPING_NOTIFY => reader.read_mapping_notify(),
+                                    _ => continue
+                                } {
+                                    Some(event) => event,
+                                    None => continue
+                                }
+                            , sequence_number)
+                        }
                     };
 
                     match resp_sender.send(response) {
