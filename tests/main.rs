@@ -76,7 +76,7 @@ mod tests {
             ServerResponse::Reply(reply, sequence_number) => {
                 println!("Got reply response {}: {:?}", sequence_number, reply);
             },
-            _ => ()
+            _ => unreachable!()
         };
         //client.list_fonts_with_info(5, "");
 

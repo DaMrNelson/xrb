@@ -619,7 +619,6 @@ pub enum ServerEvent {
         first_keycode: char,
         count: u8
     }
-    // TODO: Continue at FocusIn
 }
 
 pub enum ServerResponse {
@@ -1464,6 +1463,47 @@ impl KeyButton {
         }
         
         return v;
+    }
+}
+
+pub enum SaveSetMode {
+    Insert,
+    Delete
+}
+impl SaveSetMode {
+    pub fn val(&self) -> u8 {
+        match self {
+            &SaveSetMode::Insert => 0,
+            &SaveSetMode::Delete => 1
+        }
+    }
+}
+
+pub enum CirculateDirection {
+    RaiseLowest,
+    LowerHighest
+}
+impl CirculateDirection {
+    pub fn val(&self) -> u8 {
+        match self {
+            &CirculateDirection::RaiseLowest => 0,
+            &CirculateDirection::LowerHighest => 1
+        }
+    }
+}
+
+pub enum PropertyChangeMode {
+    Replace,
+    Prepend,
+    Append
+}
+impl PropertyChangeMode {
+    pub fn val(&self) -> u8 {
+        match self {
+            &PropertyChangeMode::Replace => 0,
+            &PropertyChangeMode::Prepend => 1,
+            &PropertyChangeMode::Append => 2
+        }
     }
 }
 
