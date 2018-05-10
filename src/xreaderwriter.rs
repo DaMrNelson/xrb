@@ -8,7 +8,9 @@ use std::io::{BufReader};
 
 pub trait XBufferedWriter {
     fn write_sequence(&mut self, rtype: ServerReplyType) -> u16;
+    fn write_raw(&mut self, buf: &[u8]);
     fn write_pad(&mut self, len: usize);
+    fn write_pad_op(&mut self, len: usize);
     fn write_bool(&mut self, input: bool);
     fn write_u8(&mut self, input: u8);
     fn write_i16(&mut self, input: i16);

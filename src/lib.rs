@@ -210,6 +210,7 @@ impl XClient {
 
                     let response = match opcode {
                         protocol::REPLY_ERROR => {
+                            sq_receiver.recv().unwrap(); // Throw out expected reply type
                             match reader.read_error(detail) {
                                 Some(err) => ServerResponse::Error(err, sequence_number),
                                 None => continue
@@ -415,8 +416,18 @@ impl XClient {
 }
 
 impl XClient { // This is actually a pretty nice feature for organization
+    // COPY+PASTE TEMPLATE (not required to follow this format, it just makes it easier to write)
+    /*
+    /** Tells the X Server to [TODO] */
+    pub fn (&mut self, ) -> u16 {
+        self.write_u8(protocol::OP_);
+
+        self.write_sequence(ServerReplyType::None)
+    }
+    */
+
     /** Tells the X Server to create a window */
-    pub fn create_window(&mut self, window: &Window) -> u16 {
+    pub fn create_window(&mut self, window: &Window) {
         // Should be 28 not including values and their mask
         self.write_u8(protocol::OP_CREATE_WINDOW);
         self.write_u8(window.depth);
@@ -436,11 +447,11 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u32(window.visual_id);
         self.write_values(&window.values);
 
-        self.write_sequence(ServerReplyType::None)
+        self.write_sequence(ServerReplyType::None);
     }
 
     /** Tells the X Server to change a window's attributes */
-    pub fn change_window_attributes(&mut self, wid: u32, values: &Vec<WindowValue>) -> u16 {
+    pub fn change_window_attributes(&mut self, wid: u32, values: &Vec<WindowValue>) {
         // Should be 28 not including values and their mask
         self.write_u8(protocol::OP_CHANGE_WINDOW_ATTRIBUTES);
         self.write_pad(1);
@@ -448,7 +459,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u32(wid);
         self.write_values(&values);
 
-        self.write_sequence(ServerReplyType::None)
+        self.write_sequence(ServerReplyType::None);
     }
 
     /** Tells the X Server to send us the window's attributes */
@@ -461,15 +472,279 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_sequence(ServerReplyType::GetWindowAttributes)
     }
 
+    /** Tells the X Server to destroy a window */
+    pub fn destroy_window(&mut self, wid: u32) {
+        self.write_u8(protocol::OP_DESTROY_WINDOW);
+        self.write_pad(1);
+        self.write_u16(2);
+        self.write_u32(wid);
+
+        self.write_sequence(ServerReplyType::None);
+    }
+
+    /** Tells the X Server to destroy a window's subwidnows */
+    pub fn destroy_subwindows(&mut self, wid: u32) {
+        self.write_u8(protocol::OP_DESTROY_SUBWINDOWS);
+        self.write_pad(1);
+        self.write_u16(2);
+        self.write_u32(wid);
+
+        self.write_sequence(ServerReplyType::None);
+    }
+
+    /** Tells the X Server to change a window's save set */
+    pub fn change_save_set(&mut self, wid: u32, mode: SaveSetMode) {
+        self.write_u8(protocol::OP_CHANGE_SAVE_SET);
+        self.write_u8(mode.val());
+        self.write_u16(2);
+        self.write_u32(wid);
+
+        self.write_sequence(ServerReplyType::None);
+    }
+
+    /** Tells the X Server to reparent a window */
+    pub fn reparent_window(&mut self, wid: u32, parent: u32, x: i16, y: i16) {
+        self.write_u8(protocol::OP_REPARENT_WINDOW);
+        self.write_pad(1);
+        self.write_u16(4);
+        self.write_u32(wid);
+        self.write_u32(parent);
+        self.write_i16(x);
+        self.write_i16(y);
+
+        self.write_sequence(ServerReplyType::None);
+    }
+
     /** Tells the X Server to map a window (makes it visible I think) */
-    pub fn map_window(&mut self, window: u32) -> u16 {
+    pub fn map_window(&mut self, wid: u32) {
         self.write_u8(protocol::OP_MAP_WINDOW);
         self.write_pad(1);
         self.write_u16(2);
-        self.write_u32(window);
+        self.write_u32(wid);
 
-        self.write_sequence(ServerReplyType::None)
+        self.write_sequence(ServerReplyType::None);
     }
+
+    /** Tells the X Server to map a window's subwindows (makes them visible I think) */
+    pub fn map_subwindows(&mut self, wid: u32) {
+        self.write_u8(protocol::OP_MAP_SUBWINDOWS);
+        self.write_pad(1);
+        self.write_u16(2);
+        self.write_u32(wid);
+
+        self.write_sequence(ServerReplyType::None);
+    }
+
+    /** Tells the X Server to unmap a window (makes it invisible I think) */
+    pub fn unmap_window(&mut self, wid: u32) {
+        self.write_u8(protocol::OP_UNMAP_WINDOW);
+        self.write_pad(1);
+        self.write_u16(2);
+        self.write_u32(wid);
+
+        self.write_sequence(ServerReplyType::None);
+    }
+
+    /** Tells the X Server to unmap a window's subwindows (makes them invisible I think) */
+    pub fn unmap_subwindows(&mut self, wid: u32) {
+        self.write_u8(protocol::OP_UNMAP_SUBWINDOWS);
+        self.write_pad(1);
+        self.write_u16(2);
+        self.write_u32(wid);
+
+        self.write_sequence(ServerReplyType::None);
+    }
+
+    /** Tells the X Server to configure a window */
+    pub fn configure_window(&mut self, wid: u32, values: Vec<WindowValue>) {
+        self.write_u8(protocol::OP_CONFIGURE_WINDOW);
+        self.write_pad(1);
+        self.write_u16(3 + values.len() as u16);
+        self.write_u32(wid);
+        self.write_values(&values);
+
+        self.write_sequence(ServerReplyType::None);
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn circulate_window(&mut self, wid: u32, direction: CirculateDirection) {
+        self.write_u8(protocol::OP_UNMAP_SUBWINDOWS);
+        self.write_u8(direction.val());
+        self.write_u16(2);
+        self.write_u32(wid);
+
+        self.write_sequence(ServerReplyType::None);
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn get_geometry(&mut self, drawable: u32) -> u16 {
+        self.write_u8(protocol::OP_GET_GEOMETRY);
+        self.write_pad(1);
+        self.write_u16(2);
+        self.write_u32(drawable);
+
+        self.write_sequence(ServerReplyType::GetGeometry)
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn query_tree(&mut self, wid: u32) -> u16 {
+        self.write_u8(protocol::OP_QUERY_TREE);
+        self.write_pad(1);
+        self.write_u16(2);
+        self.write_u32(wid);
+
+        self.write_sequence(ServerReplyType::QueryTree)
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn intern_atom(&mut self, name: &str, only_if_exists: bool) -> u16 {
+        self.write_u8(protocol::OP_INTERN_ATOM);
+        self.write_bool(only_if_exists);
+        self.write_u16((2 + name.len() + name.len() % 4) as u16 / 4);
+        self.write_u16(name.len() as u16);
+        self.write_pad(2);
+        self.write_str(name);
+        self.write_pad_op(name.len() % 4);
+
+        self.write_sequence(ServerReplyType::InternAtom)
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn get_atom_name(&mut self, atom: u32) -> u16 {
+        self.write_u8(protocol::OP_GET_ATOM_NAME);
+        self.write_pad(1);
+        self.write_u16(2);
+        self.write_u32(4);
+
+        self.write_sequence(ServerReplyType::GetAtomName)
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn change_property(&mut self, wid: u32, property: u32, ptype: u32, mode: PropertyChangeMode, data: &[u8]) {
+        let len = data.len();
+        let format =
+            if len % 4 == 0 {
+                32
+            } else if len % 2 == 0 {
+                16
+            } else {
+                8
+            };
+        self.write_u8(protocol::OP_CHANGE_PROPERTY);
+        self.write_u8(mode.val());
+        self.write_u16(6 + (data.len() / 4 + data.len() % 4) as u16);
+        self.write_u32(wid);
+        self.write_u32(property);
+        self.write_u32(ptype);
+        self.write_u8(format);
+        self.write_pad(3);
+        self.write_u32(match format {
+            32 => len / 4,
+            16 => len / 2,
+            8 => len,
+            _ => unreachable!()
+        } as u32);
+        self.write_raw(data);
+        self.write_pad_op(data.len() % match format {
+            32 => 4,
+            16 => 2,
+            8 => 1,
+            _ => unreachable!()
+        });
+
+        self.write_sequence(ServerReplyType::None);
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn delete_property(&mut self, wid: u32, property: u32) {
+        self.write_u8(protocol::OP_DELETE_PROPERTY);
+        self.write_pad(1);
+        self.write_u16(3);
+        self.write_u32(wid);
+        self.write_u32(property);
+
+        self.write_sequence(ServerReplyType::None);
+    }
+
+    /**
+     * Tells the X Server to [TODO]
+     * `ptype` = 0 = any property type
+     */
+    pub fn get_property(&mut self, wid: u32, property: u32, ptype: u32, delete: bool, long_offset: u32, long_length: u32) -> u16 {
+        self.write_u8(protocol::OP_GET_PROPERTY);
+        self.write_bool(delete);
+        self.write_u16(6);
+        self.write_u32(wid);
+        self.write_u32(property);
+        self.write_u32(ptype);
+
+        self.write_sequence(ServerReplyType::GetProperty)
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn list_properties(&mut self, wid: u32) -> u16 {
+        self.write_u8(protocol::OP_LIST_PROPERTIES);
+        self.write_pad(1);
+        self.write_u16(2);
+        self.write_u32(wid);
+
+        self.write_sequence(ServerReplyType::ListProperties)
+    }
+
+    /**
+     * Tells the X Server to [TODO]
+     * `owner` = 0 = none
+     * `time` = 0 = current time
+     */
+    pub fn set_selection_owner(&mut self, owner: u32, selection: u32, time: u32) {
+        self.write_u8(protocol::OP_SET_SELECTION_OWNER);
+        self.write_pad(1);
+        self.write_u16(4);
+        self.write_u32(owner);
+        self.write_u32(selection);
+        self.write_u32(time);
+
+        self.write_sequence(ServerReplyType::None);
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn get_selection_owner(&mut self, selection: u32) -> u16 {
+        self.write_u8(protocol::OP_GET_SELECTION_OWNER);
+        self.write_pad(1);
+        self.write_u16(2);
+        self.write_u32(selection);
+
+        self.write_sequence(ServerReplyType::GetSelectionOwner)
+    }
+
+    /** Tells the X Server to [TODO]
+     * `property` = 0 = none
+     * `time` = 0 = current time
+     */
+    pub fn convert_selection(&mut self, requestor: u32, selection: u32, target: u32, property: u32, time: u32) {
+        self.write_u8(protocol::OP_CONVERT_SELECTION);
+        self.write_pad(1);
+        self.write_u16(6);
+        self.write_u32(requestor);
+        self.write_u32(selection);
+        self.write_u32(target);
+        self.write_u32(property);
+        self.write_u32(time);
+
+        self.write_sequence(ServerReplyType::None);
+    }
+
+    /**
+     * Tells the X Server to [TODO] 
+     * `window` = 0 = PointerWindow
+     * `window` = 1 = InputFocus
+     */
+    pub fn send_event(&mut self) {
+        panic!("TODO: Implement send_event!"); // TODO: Implement this
+    }
+
+    // TODO: Continue at GrabPointer
+    // Don't forget about the template above (search "fn (")
 
     /** Lists all fonts with the given info */
     pub fn list_fonts_with_info(&mut self, max_names: u16, pattern: &str) -> u16 {
@@ -479,16 +754,13 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u16(max_names);
         self.write_u16(pattern.len() as u16);
         self.write_str(pattern);
-        match pattern.len() % 4 {
-            0 => (),
-            pad => self.write_pad(pad)
-        };
+        self.write_pad_op(pattern.len() % 4);
 
         self.write_sequence(ServerReplyType::ListFontsWithInfo)
     }
 
     /** Tells the X Server to create a pixmap */
-    pub fn create_pixmap(&mut self, pixmap: Pixmap) -> u16 {
+    pub fn create_pixmap(&mut self, pixmap: Pixmap) {
         self.write_u8(protocol::OP_CREATE_PIXMAP);
         self.write_u8(pixmap.depth);
         self.write_u16(4); // Request length
@@ -497,11 +769,11 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u16(pixmap.width);
         self.write_u16(pixmap.height);
 
-        self.write_sequence(ServerReplyType::None)
+        self.write_sequence(ServerReplyType::None);
     }
 
     /** Tells the X Server to create a graphics context */
-    pub fn create_gc(&mut self, gc: GraphicsContext) -> u16 {
+    pub fn create_gc(&mut self, gc: GraphicsContext) {
         self.write_u8(protocol::OP_CREATE_GC);
         self.write_pad(1);
         self.write_u16(4 + gc.values.len() as u16);
@@ -509,7 +781,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u32(gc.drawable);
         self.write_values(&gc.values);
 
-        self.write_sequence(ServerReplyType::None)
+        self.write_sequence(ServerReplyType::None);
     }
 }
 
@@ -527,7 +799,14 @@ impl XBufferedWriter for XClient {
     }
 
     /**
-     * Writes X bytes (not guaranteed to be zero).
+     * Writes raw data.
+     */
+    fn write_raw(&mut self, buf: &[u8]) {
+        self.buf_out.write_all(buf);
+    }
+
+    /**
+     * Writes 1 or more bytes (not guaranteed to be zero).
      */
     fn write_pad(&mut self, len: usize) {
         match len {
@@ -537,6 +816,15 @@ impl XBufferedWriter for XClient {
             4 => self.buf_out.write_all(&self.buf_four_byte),
             _ => self.buf_out.write_all(&vec![0u8; len])
         }.unwrap();
+    }
+
+    /**
+     * Writes 0 or more bytes (not guaranteed to be zero).
+     */
+    fn write_pad_op(&mut self, len: usize) {
+        if len != 0 {
+            self.write_pad(len);
+        }
     }
 
     /**
