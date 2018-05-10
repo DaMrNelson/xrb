@@ -420,9 +420,11 @@ impl XClient { // This is actually a pretty nice feature for organization
     /*
     /** Tells the X Server to [TODO] */
     pub fn (&mut self, ) -> u16 {
+    pub fn (&mut self, ) {
         self.write_u8(protocol::OP_);
 
         self.write_sequence(ServerReplyType::None)
+        self.write_request();
     }
     */
 
@@ -447,7 +449,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u32(window.visual_id);
         self.write_values(&window.values);
 
-        self.write_sequence(ServerReplyType::None);
+        self.write_request();
     }
 
     /** Tells the X Server to change a window's attributes */
@@ -459,7 +461,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u32(wid);
         self.write_values(&values);
 
-        self.write_sequence(ServerReplyType::None);
+        self.write_request();
     }
 
     /** Tells the X Server to send us the window's attributes */
@@ -479,7 +481,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u16(2);
         self.write_u32(wid);
 
-        self.write_sequence(ServerReplyType::None);
+        self.write_request();
     }
 
     /** Tells the X Server to destroy a window's subwidnows */
@@ -489,7 +491,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u16(2);
         self.write_u32(wid);
 
-        self.write_sequence(ServerReplyType::None);
+        self.write_request();
     }
 
     /** Tells the X Server to change a window's save set */
@@ -499,7 +501,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u16(2);
         self.write_u32(wid);
 
-        self.write_sequence(ServerReplyType::None);
+        self.write_request();
     }
 
     /** Tells the X Server to reparent a window */
@@ -512,7 +514,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_i16(x);
         self.write_i16(y);
 
-        self.write_sequence(ServerReplyType::None);
+        self.write_request();
     }
 
     /** Tells the X Server to map a window (makes it visible I think) */
@@ -522,7 +524,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u16(2);
         self.write_u32(wid);
 
-        self.write_sequence(ServerReplyType::None);
+        self.write_request();
     }
 
     /** Tells the X Server to map a window's subwindows (makes them visible I think) */
@@ -532,7 +534,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u16(2);
         self.write_u32(wid);
 
-        self.write_sequence(ServerReplyType::None);
+        self.write_request();
     }
 
     /** Tells the X Server to unmap a window (makes it invisible I think) */
@@ -542,7 +544,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u16(2);
         self.write_u32(wid);
 
-        self.write_sequence(ServerReplyType::None);
+        self.write_request();
     }
 
     /** Tells the X Server to unmap a window's subwindows (makes them invisible I think) */
@@ -552,7 +554,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u16(2);
         self.write_u32(wid);
 
-        self.write_sequence(ServerReplyType::None);
+        self.write_request();
     }
 
     /** Tells the X Server to configure a window */
@@ -563,7 +565,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u32(wid);
         self.write_values(&values);
 
-        self.write_sequence(ServerReplyType::None);
+        self.write_request();
     }
 
     /** Tells the X Server to [TODO] */
@@ -573,7 +575,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u16(2);
         self.write_u32(wid);
 
-        self.write_sequence(ServerReplyType::None);
+        self.write_request();
     }
 
     /** Tells the X Server to [TODO] */
@@ -652,7 +654,7 @@ impl XClient { // This is actually a pretty nice feature for organization
             _ => unreachable!()
         });
 
-        self.write_sequence(ServerReplyType::None);
+        self.write_request();
     }
 
     /** Tells the X Server to [TODO] */
@@ -663,7 +665,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u32(wid);
         self.write_u32(property);
 
-        self.write_sequence(ServerReplyType::None);
+        self.write_request();
     }
 
     /**
@@ -704,7 +706,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u32(selection);
         self.write_u32(time);
 
-        self.write_sequence(ServerReplyType::None);
+        self.write_request();
     }
 
     /** Tells the X Server to [TODO] */
@@ -731,7 +733,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u32(property);
         self.write_u32(time);
 
-        self.write_sequence(ServerReplyType::None);
+        self.write_request();
     }
 
     /**
@@ -769,7 +771,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u16(pixmap.width);
         self.write_u16(pixmap.height);
 
-        self.write_sequence(ServerReplyType::None);
+        self.write_request();
     }
 
     /** Tells the X Server to create a graphics context */
@@ -781,12 +783,12 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u32(gc.drawable);
         self.write_values(&gc.values);
 
-        self.write_sequence(ServerReplyType::None);
+        self.write_request();
     }
 }
 
 impl XBufferedWriter for XClient {
-    /** Flushes the buffer. */
+    /** Flushes the buffer and writes a reply. */
     fn write_sequence(&mut self, rtype: ServerReplyType) -> u16 {
         match rtype {
             ServerReplyType::None => (),
@@ -796,6 +798,11 @@ impl XBufferedWriter for XClient {
         let the_sequence = self.current_sequence;
         self.current_sequence += 1;
         the_sequence
+    }
+
+    /** Shortcut to write_sequence(ServerReplyType::None); */
+    fn write_request(&mut self) {
+        self.write_sequence(ServerReplyType::None);
     }
 
     /**
