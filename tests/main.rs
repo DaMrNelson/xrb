@@ -67,7 +67,17 @@ mod tests {
         client.map_window(window.wid);
 
         // Test replies
-        client.get_window_attributes(window.wid);
+        let seq = client.get_window_attributes(window.wid);
+        println!("Expecting response with sequence {}", seq);
+        match client.wait_for_response(seq) {
+            ServerResponse::Error(error, sequence_number) => {
+                println!("Got error response {}: {:?}", sequence_number, error);
+            },
+            ServerResponse::Reply(reply, sequence_number) => {
+                println!("Got reply response {}: {:?}", sequence_number, reply);
+            },
+            _ => ()
+        };
         //client.list_fonts_with_info(5, "");
 
         // Main event loop

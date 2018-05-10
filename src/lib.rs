@@ -2,6 +2,7 @@ pub mod models;
 mod protocol;
 mod xreaderwriter;
 
+use std::collections::VecDeque;
 use std::os::unix::net::UnixStream;
 use std::io::prelude::*;
 use std::io::{BufWriter, BufReader};
@@ -17,6 +18,7 @@ pub struct XClient {
     pub connect_info: ConnectInfo,
     buf_out: BufWriter<UnixStream>,
     resp_receiver: mpsc::Receiver<ServerResponse>, // Receive errors, replies, and events from the X Server
+    resp_queue: VecDeque<ServerResponse>, // Used to store errors when the user wants to skip to a certain event or error
     sq_sender: mpsc::Sender<(u16, ServerReplyType)>, // Send sequence IDs to the reader thread so it can properly parse replies
     next_resource_id: u32,
     current_sequence: u16,
@@ -40,6 +42,7 @@ impl XClient {
             connect_info: ConnectInfo::empty(),
             buf_out: BufWriter::new(stream),
             resp_receiver: resp_receiver,
+            resp_queue: VecDeque::with_capacity(15),
             sq_sender: sq_sender,
             next_resource_id: 0,
             current_sequence: 0,
@@ -303,15 +306,20 @@ impl XClient {
         self.connect_info.resource_id_base | id
     }
 
-    /** Waits for the next available event, error, or reply. Blocks.
+    /**
+     * Waits for the next available event, error, or reply. Blocks.
      * Use get_message if you do not want to block.
      */
     pub fn wait_for_message(&mut self) -> ServerResponse {
         loop {
-            match self.resp_receiver.recv() {
-                Ok(x) => return x,
-                Err(e) => eprintln!("Failed to get message from the receiver. Will try again. Error: {:?}", e)
-            };
+            if self.resp_queue.is_empty() {
+                match self.resp_receiver.recv() {
+                    Ok(x) => return x,
+                    Err(e) => eprintln!("Failed to get message from the receiver. Will try again. Error: {:?}", e)
+                }
+            } else {
+                return self.resp_queue.pop_front().unwrap();
+            }
         }
     }
 
@@ -320,9 +328,88 @@ impl XClient {
      * Use wait_for_message to block until a new message is received.
      */
     pub fn get_message(&mut self) -> Option<ServerResponse> {
-        match self.resp_receiver.try_recv() {
-            Ok(x) => Some(x),
-            Err(_) => None
+        if self.resp_queue.is_empty() {
+            match self.resp_receiver.try_recv() {
+                Ok(x) => Some(x),
+                Err(_) => None
+            }
+        } else {
+            self.resp_queue.pop_front()
+        }
+    }
+
+    /**
+     * Waits for the next available error or reply with the given sequence number. Blocks.
+     * Note: wait_for_message will also pick up responses. Only use this method if you want to ignore other requests until you get a response from a specific request.
+     * Skipped messages will be saved and will be used in wait_for_message and get_message, in order.
+     * 
+     * Returns: ServerResponse::Error or ServerResponse::Reply.
+     */
+    pub fn wait_for_response(&mut self, seq: u16) -> ServerResponse {
+        // Check if its in the current response queue
+        if !self.resp_queue.is_empty() {
+            let mut index = self.resp_queue.len();
+
+            for (i, res) in self.resp_queue.iter().enumerate() {
+                match res {
+                    &ServerResponse::Error(_, eseq) => {
+                        if eseq == seq {
+                            index = i;
+                            break;
+                        }
+                    },
+                    &ServerResponse::Reply(_, eseq) => {
+                        if eseq == seq {
+                            index = i;
+                            break;
+                        }
+                    },
+                    _ => ()
+                }
+            }
+
+            if index != self.resp_queue.len() {
+                return self.resp_queue.remove(index).unwrap();
+            }
+        }
+
+        // Start growing the response queue until we get that response
+        let mut matched = false;
+
+        loop {
+            let mut val = None;
+
+            match self.resp_receiver.recv() {
+                Ok(res) => match res {
+                        ServerResponse::Error(_, eseq) => {
+                        println!("Trying to match. Expect {}, got {}", seq, eseq);
+                        if eseq == seq {
+                            matched = true;
+                            val = Some(res);
+                        }
+                    },
+                    ServerResponse::Reply(_, eseq) => {
+                        println!("Trying to match. Expect {}, got {}", seq, eseq);
+                        if eseq == seq {
+                            matched = true;
+                            val = Some(res);
+                        }
+                    },
+                    _ => val = Some(res),
+                },
+                Err(e) => eprintln!("Failed to get message from the receiver. Will try again. Error: {:?}", e)
+            };
+
+            match val {
+                Some(res) => {
+                    if matched {
+                        return res;
+                    } else {
+                    self.resp_queue.push_back(res);
+                    }
+                },
+                None => ()
+            }
         }
     }
 }

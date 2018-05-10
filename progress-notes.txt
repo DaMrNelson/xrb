@@ -30,3 +30,4 @@ Using this to track what I have done in case I ever want to write something abou
         - Implement GetWindowAttributes (first one I saw) and ListFontsWithInfo (returns multiple, so good for testing that feature)
     - Realize that I have made a huge mistake with how I am reading in and validating stuff. Go to switch to buffered reading of x characters then reading from that buffer.
         - This was actually a LOT to transfer too than I expected. What a pleasant surprise :)
+    - Add ability to ignore messages from the X Server until you get a reply or error with the specified sequence number. Messages are stored for later, so you will not miss anything by using this.
