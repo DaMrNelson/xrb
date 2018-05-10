@@ -8,7 +8,8 @@ This is still a work in progress, and things may not work. Feel free to submit s
 - Connect with no auth
 - Create and map a window with a pixmap and graphics context
 - Subscribe to events
-- Get events and errors from the X Server (no replies yet)
+- Get events, errors, and two replies from the X Server
+    - Temporarily ignore messages from the X Server until you get an error/reply with your sequence number (stores messages for later usage)
 
 # How Does It Work?
 - Connection is all async
