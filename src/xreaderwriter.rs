@@ -8,6 +8,7 @@ use std::io::{BufReader};
 
 pub trait XBufferedWriter {
     fn write_sequence(&mut self, rtype: ServerReplyType) -> u16;
+    fn write_request(&mut self);
     fn write_raw(&mut self, buf: &[u8]);
     fn write_pad(&mut self, len: usize);
     fn write_pad_op(&mut self, len: usize);
