@@ -260,7 +260,7 @@ impl XClient {
                                     protocol::REPLY_UNMAP_NOTIFY => reader.read_unmap_notify(),
                                     protocol::REPLY_MAP_NOTIFY => reader.read_map_notify(),
                                     protocol::REPLY_MAP_REQUEST => reader.read_map_request(),
-                                    protocol::REPLY_REPART_NOTIFY => reader.read_reparent_notify(),
+                                    protocol::REPLY_REPARENT_NOTIFY => reader.read_reparent_notify(),
                                     protocol::REPLY_CONFIGURE_NOTIFY => reader.read_configure_notify(),
                                     protocol::REPLY_CONFIGURE_REQUEST => reader.read_configure_request(detail),
                                     protocol::REPLY_GRAVITY_NOTIFY => reader.read_gravity_notify(),
@@ -415,6 +415,7 @@ impl XClient {
     }
 }
 
+// Endpoints
 impl XClient { // This is actually a pretty nice feature for organization
     // COPY+PASTE TEMPLATE (not required to follow this format, it just makes it easier to write)
     /*
@@ -738,11 +739,435 @@ impl XClient { // This is actually a pretty nice feature for organization
 
     /**
      * Tells the X Server to [TODO] 
-     * `window` = 0 = PointerWindow
-     * `window` = 1 = InputFocus
+     * `destination` = 0 = PointerWindow
+     * `destination` = 1 = InputFocus
      */
-    pub fn send_event(&mut self) {
-        panic!("TODO: Implement send_event!"); // TODO: Implement this
+    pub fn send_event(&mut self, event: ServerEvent, propagate: bool, destination: u32) {
+        let seq = self.current_sequence;
+        match event {
+            ServerEvent::KeyPress { key_code, time, root, event, child, root_x, root_y, event_x, event_y, state, same_screen } => {
+                self.write_u8(protocol::REPLY_KEY_PRESS);
+                self.write_u8(key_code);
+                self.write_u16(seq);
+                self.write_u32(time);
+                self.write_u32(root);
+                self.write_u32(event);
+                self.write_u32(child);
+                self.write_i16(root_x);
+                self.write_i16(root_y);
+                self.write_i16(event_x);
+                self.write_i16(event_y);
+                self.write_u16({
+                    let mut mask = 0;
+                    for val in state.iter() {
+                        mask |= val.val();
+                    }
+                    mask
+                });
+                self.write_bool(same_screen);
+                self.write_pad(1);
+            },
+            ServerEvent::KeyRelease { key_code, time, root, event, child, root_x, root_y, event_x, event_y, state, same_screen } => {
+                self.write_u8(protocol::REPLY_KEY_RELEASE);
+                self.write_u8(key_code);
+                self.write_u16(seq);
+                self.write_u32(time);
+                self.write_u32(root);
+                self.write_u32(event);
+                self.write_u32(child);
+                self.write_i16(root_x);
+                self.write_i16(root_y);
+                self.write_i16(event_x);
+                self.write_i16(event_y);
+                self.write_u16({
+                    let mut mask = 0;
+                    for val in state.iter() {
+                        mask |= val.val();
+                    }
+                    mask
+                });
+                self.write_bool(same_screen);
+                self.write_pad(1);
+            },
+            ServerEvent::ButtonPress { button, time, root, event, child, root_x, root_y, event_x, event_y, state, same_screen } => {
+                self.write_u8(protocol::REPLY_BUTTON_PRESS);
+                self.write_u8(button);
+                self.write_u16(seq);
+                self.write_u32(time);
+                self.write_u32(root);
+                self.write_u32(event);
+                self.write_u32(child);
+                self.write_i16(root_x);
+                self.write_i16(root_y);
+                self.write_i16(event_x);
+                self.write_i16(event_y);
+                self.write_u16({
+                    let mut mask = 0;
+                    for val in state.iter() {
+                        mask |= val.val();
+                    }
+                    mask
+                });
+                self.write_bool(same_screen);
+                self.write_pad(1);
+            },
+            ServerEvent::ButtonRelease { button, time, root, event, child, root_x, root_y, event_x, event_y, state, same_screen } => {
+                self.write_u8(protocol::REPLY_BUTTON_RELEASE);
+                self.write_u8(button);
+                self.write_u16(seq);
+                self.write_u32(time);
+                self.write_u32(root);
+                self.write_u32(event);
+                self.write_u32(child);
+                self.write_i16(root_x);
+                self.write_i16(root_y);
+                self.write_i16(event_x);
+                self.write_i16(event_y);
+                self.write_u16({
+                    let mut mask = 0;
+                    for val in state.iter() {
+                        mask |= val.val();
+                    }
+                    mask
+                });
+                self.write_bool(same_screen);
+                self.write_pad(1);
+            },
+            ServerEvent::MotionNotify { detail, time, root, event, child, root_x, root_y, event_x, event_y, state, same_screen } => {
+                self.write_u8(protocol::REPLY_MOTION_NOTIFY);
+                self.write_u8(detail.val());
+                self.write_u16(seq);
+                self.write_u32(time);
+                self.write_u32(root);
+                self.write_u32(event);
+                self.write_u32(child);
+                self.write_i16(root_x);
+                self.write_i16(root_y);
+                self.write_i16(event_x);
+                self.write_i16(event_y);
+                self.write_u16({
+                    let mut mask = 0;
+                    for val in state.iter() {
+                        mask |= val.val();
+                    }
+                    mask
+                });
+                self.write_bool(same_screen);
+                self.write_pad(1);
+            },
+            ServerEvent::EnterNotify { detail, time, root, event, child, root_x, root_y, event_x, event_y, state, mode, same_screen, focus } => {
+                self.write_u8(protocol::REPLY_ENTER_NOTIFY);
+                self.write_u8(detail.val());
+                self.write_u16(seq);
+                self.write_u32(time);
+                self.write_u32(root);
+                self.write_u32(event);
+                self.write_u32(child);
+                self.write_i16(root_x);
+                self.write_i16(root_y);
+                self.write_i16(event_x);
+                self.write_i16(event_y);
+                self.write_mask_u16(state.iter().map(|val| val.val()).collect());
+                self.write_u8(mode.val());
+                self.write_u8(
+                    if same_screen && focus {
+                        0x01 | 0x02
+                    } else if same_screen {
+                        0x02
+                    } else if focus {
+                        0x01
+                    } else {
+                        0xFC
+                    }
+                );
+            },
+            ServerEvent::LeaveNotify { detail, time, root, event, child, root_x, root_y, event_x, event_y, state, mode, same_screen, focus } => {
+                self.write_u8(protocol::REPLY_LEAVE_NOTIFY);
+                self.write_u8(detail.val());
+                self.write_u16(seq);
+                self.write_u32(time);
+                self.write_u32(root);
+                self.write_u32(event);
+                self.write_u32(child);
+                self.write_i16(root_x);
+                self.write_i16(root_y);
+                self.write_i16(event_x);
+                self.write_i16(event_y);
+                self.write_mask_u16(state.iter().map(|val| val.val()).collect());
+                self.write_u8(mode.val());
+                self.write_u8(
+                    if same_screen && focus {
+                        0x01 | 0x02
+                    } else if same_screen {
+                        0x02
+                    } else if focus {
+                        0x01
+                    } else {
+                        0xFC
+                    }
+                );
+            },
+            ServerEvent::FocusIn { detail, event, mode } => {
+                self.write_u8(protocol::REPLY_FOCUS_IN);
+                self.write_u8(detail.val());
+                self.write_u16(seq);
+                self.write_u32(event);
+                self.write_u8(mode.val());
+                self.write_pad(23);
+            },
+            ServerEvent::FocusOut { detail, event, mode } => {
+                self.write_u8(protocol::REPLY_FOCUS_OUT);
+                self.write_u8(detail.val());
+                self.write_u16(seq);
+                self.write_u32(event);
+                self.write_u8(mode.val());
+                self.write_pad(23);
+            },
+            ServerEvent::KeymapNotify { } => {
+                panic!("Not implemented yet"); // TODO: Do this
+            },
+            ServerEvent::Expose { window, x, y, width, height, count } => {
+                self.write_u8(protocol::REPLY_EXPOSE);
+                self.write_pad(1);
+                self.write_u16(seq);
+                self.write_u32(window);
+                self.write_u16(x);
+                self.write_u16(y);
+                self.write_u16(width);
+                self.write_u16(height);
+                self.write_u16(count);
+                self.write_pad(14);
+            },
+            ServerEvent::GraphicsExposure { drawable, x, y, width, height, minor_opcode, count, major_opcode } => {
+                self.write_u8(protocol::REPLY_GRAPHICS_EXPOSURE);
+                self.write_pad(1);
+                self.write_u16(seq);
+                self.write_u32(drawable);
+                self.write_u16(x);
+                self.write_u16(y);
+                self.write_u16(width);
+                self.write_u16(height);
+                self.write_u16(minor_opcode);
+                self.write_u16(count);
+                self.write_u8(major_opcode);
+                self.write_pad(11);
+            },
+            ServerEvent::NoExposure { drawable, minor_opcode, major_opcode } => {
+                self.write_u8(protocol::REPLY_NO_EXPOSURE);
+                self.write_pad(1);
+                self.write_u16(seq);
+                self.write_u32(drawable);
+                self.write_u16(minor_opcode);
+                self.write_u8(major_opcode);
+                self.write_pad(21);
+            },
+            ServerEvent::VisibilityNotify { window, state } => {
+                self.write_u8(protocol::REPLY_VISIBILITY_NOTIFY);
+                self.write_pad(1);
+                self.write_u16(seq);
+                self.write_u32(window);
+                self.write_u8(state.val());
+                self.write_pad(23);
+            },
+            ServerEvent::CreateNotify { parent, window, x, y, width, height, border_width, override_redirect } => {
+                self.write_u8(protocol::REPLY_CREATE_NOTIFY);
+                self.write_pad(1);
+                self.write_u16(seq);
+                self.write_u32(parent);
+                self.write_u32(window);
+                self.write_i16(x);
+                self.write_i16(y);
+                self.write_u16(width);
+                self.write_u16(height);
+                self.write_u16(border_width);
+                self.write_bool(override_redirect);
+                self.write_pad(9);
+            },
+            ServerEvent::DestroyNotify { event, window } => {
+                self.write_u8(protocol::REPLY_DESTROY_NOTIFY);
+                self.write_pad(1);
+                self.write_u16(seq);
+                self.write_u32(event);
+                self.write_u32(window);
+                self.write_pad(20);
+            },
+            ServerEvent::UnmapNotify { event, window, from_configure } => {
+                self.write_u8(protocol::REPLY_UNMAP_NOTIFY);
+                self.write_pad(1);
+                self.write_u16(seq);
+                self.write_u32(event);
+                self.write_u32(window);
+                self.write_bool(from_configure);
+                self.write_pad(19);
+            },
+            ServerEvent::MapNotify { event, window, override_redirect } => {
+                self.write_u8(protocol::REPLY_MAP_NOTIFY);
+                self.write_pad(1);
+                self.write_u16(seq);
+                self.write_u32(event);
+                self.write_u32(window);
+                self.write_bool(override_redirect);
+                self.write_pad(19);
+            },
+            ServerEvent::MapRequest { parent, window } => {
+                self.write_u8(protocol::REPLY_MAP_REQUEST);
+                self.write_pad(1);
+                self.write_u16(seq);
+                self.write_u32(parent);
+                self.write_u32(window);
+                self.write_pad(20);
+            },
+            ServerEvent::ReparentNotify { event, window, parent, x, y, override_redirect } => {
+                self.write_u8(protocol::REPLY_REPARENT_NOTIFY);
+                self.write_pad(1);
+                self.write_u16(seq);
+                self.write_u32(event);
+                self.write_u32(window);
+                self.write_u32(parent);
+                self.write_i16(x);
+                self.write_i16(y);
+                self.write_bool(override_redirect);
+                self.write_pad(11);
+            },
+            ServerEvent::ConfigureNotify { event, window, above_sibling, x, y, width, height, border_width, override_redirect } => {
+                self.write_u8(protocol::REPLY_CONFIGURE_NOTIFY);
+                self.write_pad(1);
+                self.write_u16(seq);
+                self.write_u32(event);
+                self.write_u32(window);
+                self.write_u32(above_sibling);
+                self.write_i16(x);
+                self.write_i16(y);
+                self.write_u16(width);
+                self.write_u16(height);
+                self.write_u16(border_width);
+                self.write_bool(override_redirect);
+                self.write_pad(5);
+            },
+            ServerEvent::ConfigureRequest { stack_mode, parent, window, sibling, x, y, width, height, border_width, values } => {
+                self.write_u8(protocol::REPLY_CONFIGURE_REQUEST);
+                self.write_u8(stack_mode.val());
+                self.write_u16(seq);
+                self.write_u32(parent);
+                self.write_u32(window);
+                self.write_u32(sibling);
+                self.write_i16(x);
+                self.write_i16(y);
+                self.write_u16(width);
+                self.write_u16(height);
+                self.write_u16(border_width);
+                self.write_mask_u16(values.iter().map(|val| val.val()).collect());
+                self.write_pad(4);
+            },
+            ServerEvent::GravityNotify { event, window, x, y } => {
+                self.write_u8(protocol::REPLY_GRAVITY_NOTIFY);
+                self.write_pad(1);
+                self.write_u16(seq);
+                self.write_u32(event);
+                self.write_u32(window);
+                self.write_i16(x);
+                self.write_i16(y);
+                self.write_pad(16);
+            },
+            ServerEvent::ResizeRequest { window, width, height } => {
+                self.write_u8(protocol::REPLY_RESIZE_REQUEST);
+                self.write_pad(1);
+                self.write_u16(seq);
+                self.write_u32(window);
+                self.write_u16(width);
+                self.write_u16(height);
+                self.write_pad(20);
+            },
+            ServerEvent::CirculateNotify { event, window, place } => {
+                self.write_u8(protocol::REPLY_CIRCULATE_NOTIFY);
+                self.write_pad(1);
+                self.write_u16(seq);
+                self.write_u32(event);
+                self.write_u32(window);
+                self.write_pad(4); // TODO: Spec says this is type "window", but that it is "unused"???
+                self.write_u8(place.val());
+                self.write_pad(15);
+            },
+            ServerEvent::CirculateRequest { parent, window, place } => {
+                self.write_u8(protocol::REPLY_CIRCULATE_REQUEST);
+                self.write_pad(1);
+                self.write_u16(seq);
+                self.write_u32(parent);
+                self.write_u32(window);
+                self.write_pad(4);
+                self.write_u8(place.val());
+                self.write_pad(15);
+            },
+            ServerEvent::PropertyNotify { window, atom, time, state } => {
+                self.write_u8(protocol::REPLY_PROPERTY_NOTIFY);
+                self.write_pad(1);
+                self.write_u16(seq);
+                self.write_u32(window);
+                self.write_u32(atom);
+                self.write_u32(time);
+                self.write_u8(state.val());
+                self.write_pad(15);
+            },
+            ServerEvent::SelectionClear { time, owner, selection } => {
+                self.write_u8(protocol::REPLY_SELECTION_CLEAR);
+                self.write_pad(1);
+                self.write_u16(seq);
+                self.write_u32(time);
+                self.write_u32(owner);
+                self.write_u32(selection);
+                self.write_pad(16);
+            },
+            ServerEvent::SelectionRequest { time, owner, requestor, selection, target, property } => {
+                self.write_u8(protocol::REPLY_SELECTION_REQUEST);
+                self.write_pad(1);
+                self.write_u16(seq);
+                self.write_u32(time);
+                self.write_u32(owner);
+                self.write_u32(requestor);
+                self.write_u32(selection);
+                self.write_u32(target);
+                self.write_u32(property);
+                self.write_pad(4);
+            },
+            ServerEvent::SelectionNotify { time, requestor, selection, target, property } => {
+                self.write_u8(protocol::REPLY_SELECTION_NOTIFY);
+                self.write_pad(1);
+                self.write_u16(seq);
+                self.write_u32(time);
+                self.write_u32(requestor);
+                self.write_u32(selection);
+                self.write_u32(target);
+                self.write_u32(property);
+                self.write_pad(8);
+            },
+            ServerEvent::ColormapNotify { window, colormap, new, state } => {
+                self.write_u8(protocol::REPLY_COLORMAP_NOTIFY);
+                self.write_pad(1);
+                self.write_u16(seq);
+                self.write_u32(window);
+                self.write_u32(colormap);
+                self.write_bool(new);
+                self.write_u8(state.val());
+                self.write_pad(18);
+            },
+            ServerEvent::ClientMessage { format, window, mtype, data } => {
+                self.write_u8(protocol::REPLY_CLIENT_MESSAGE);
+                self.write_u8(format);
+                self.write_u16(seq);
+                self.write_u32(window);
+                self.write_u32(mtype);
+                self.write_raw(&data);
+            },
+            ServerEvent::MappingNotify { request, first_keycode, count } => {
+                self.write_u8(protocol::REPLY_MAPPING_NOTIFY);
+                self.write_pad(1);
+                self.write_u16(seq);
+                self.write_u8(request.val());
+                self.write_u8(first_keycode as u8);
+                self.write_u8(count);
+                self.write_pad(25);
+            }
+        };
     }
 
     // TODO: Continue at GrabPointer
@@ -900,6 +1325,19 @@ impl XBufferedWriter for XClient {
             0 => (),
             _ => self.buf_out.write_all(input.as_bytes()).unwrap()
         };
+    }
+
+    /**
+     * Writes a mask based off some u16 values.
+     */
+    fn write_mask_u16(&mut self, input: Vec<u16>) {
+        let mut mask = 0;
+
+        for val in input.iter() {
+            mask |= val;
+        }
+        
+        self.write_u16(mask);
     }
 
     /**

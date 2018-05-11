@@ -612,7 +612,8 @@ pub enum ServerEvent {
     ClientMessage {
         format: u8,
         window: u32,
-        mtype: u32
+        mtype: u32,
+        data: [u8; 20]
     },
     MappingNotify {
         request: MappingType,
@@ -1176,6 +1177,13 @@ impl MotionNotifyType {
             _ => None
         }
     }
+
+    pub fn val(&self) -> u8 {
+        match self {
+            &MotionNotifyType::Normal => 0,
+            &MotionNotifyType::Hint => 1
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -1195,6 +1203,16 @@ impl NotifyType {
             3 => Some(NotifyType::Nonlinear),
             4 => Some(NotifyType::NonlinearVirtual),
             _ => None
+        }
+    }
+
+    pub fn val(&self) -> u8 {
+        match self {
+            &NotifyType::Ancestor => 0,
+            &NotifyType::Virtual => 1,
+            &NotifyType::Inferior => 2,
+            &NotifyType::Nonlinear => 3,
+            &NotifyType::NonlinearVirtual => 4
         }
     }
 }
@@ -1224,6 +1242,19 @@ impl FocusType {
             _ => None
         }
     }
+
+    pub fn val(&self) -> u8 {
+        match self {
+            &FocusType::Ancestor => 0,
+            &FocusType::Virtual => 1,
+            &FocusType::Inferior => 2,
+            &FocusType::Nonlinear => 3,
+            &FocusType::NonlinearVirtual => 4,
+            &FocusType::Pointer => 5,
+            &FocusType::PointerRoot => 6,
+            &FocusType::None => 7
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -1243,6 +1274,15 @@ impl FocusMode {
             _ => None
         }
     }
+
+    pub fn val(&self) -> u8 {
+        match self {
+            &FocusMode::Normal => 0,
+            &FocusMode::Grab => 1,
+            &FocusMode::Ungrab => 2,
+            &FocusMode::WhileGrabbed => 3
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -1260,6 +1300,14 @@ impl NotifyMode {
             _ => None
         }
     }
+
+    pub fn val(&self) -> u8 {
+        match self {
+            &NotifyMode::Normal => 0,
+            &NotifyMode::Grab => 1,
+            &NotifyMode::Ungrab => 2
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -1275,6 +1323,14 @@ impl VisibilityState {
             1 => Some(VisibilityState::PartiallyObscured),
             2 => Some(VisibilityState::FullyObscured),
             _ => None
+        }
+    }
+
+    pub fn val(&self) -> u8 {
+        match self {
+            &VisibilityState::Unobscured => 0,
+            &VisibilityState::PartiallyObscured => 1,
+            &VisibilityState::FullyObscured => 2
         }
     }
 }
@@ -1296,6 +1352,16 @@ impl StackMode {
             3 => Some(StackMode::BottomIf),
             4 => Some(StackMode::Opposite),
             _ => None
+        }
+    }
+
+    pub fn val(&self) -> u8 {
+        match self {
+            &StackMode::Above => 0,
+            &StackMode::Below => 1,
+            &StackMode::TopIf => 2,
+            &StackMode::BottomIf => 3,
+            &StackMode::Opposite => 4
         }
     }
 }
@@ -1338,6 +1404,18 @@ impl ConfigureRequestValues {
         
         return v;
     }
+
+    pub fn val(&self) -> u16 {
+        match self {
+            &ConfigureRequestValues::X => 0x0001,
+            &ConfigureRequestValues::Y => 0x0002,
+            &ConfigureRequestValues::Width => 0x0004,
+            &ConfigureRequestValues::Height => 0x0008,
+            &ConfigureRequestValues::BorderWidth => 0x0010,
+            &ConfigureRequestValues::Sibling => 0x0020,
+            &ConfigureRequestValues::StackMode => 0x0040
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -1351,6 +1429,13 @@ impl CirculatePlace {
             0 => Some(CirculatePlace::Top),
             1 => Some(CirculatePlace::Bottom),
             _ => None
+        }
+    }
+
+    pub fn val(&self) -> u8 {
+        match self {
+            &CirculatePlace::Top => 0,
+            &CirculatePlace::Bottom => 1
         }
     }
 }
@@ -1368,6 +1453,13 @@ impl PropertyState {
             _ => None
         }
     }
+
+    pub fn val(&self) -> u8 {
+        match self {
+            &PropertyState::NewValue => 0,
+            &PropertyState::Deleted => 1
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -1381,6 +1473,13 @@ impl ColormapState {
             0 => Some(ColormapState::Uninstalled),
             1 => Some(ColormapState::Installed),
             _ => None
+        }
+    }
+
+    pub fn val(&self) -> u8 {
+        match self {
+            &ColormapState::Uninstalled => 0,
+            &ColormapState::Installed => 1
         }
     }
 }
@@ -1398,6 +1497,14 @@ impl MappingType {
             1 => Some(MappingType::Keyboard),
             2 => Some(MappingType::Pointer),
             _ => None
+        }
+    }
+
+    pub fn val(&self) -> u8 {
+        match self {
+            &MappingType::Modifier => 0,
+            &MappingType::Keyboard => 1,
+            &MappingType::Pointer => 2
         }
     }
 }
@@ -1463,6 +1570,24 @@ impl KeyButton {
         }
         
         return v;
+    }
+
+    pub fn val(&self) -> u16 {
+        match self {
+            &KeyButton::Shift => 0x0001,
+            &KeyButton::Lock => 0x0002,
+            &KeyButton::Control => 0x0004,
+            &KeyButton::Mod1 => 0x0008,
+            &KeyButton::Mod2 => 0x0010,
+            &KeyButton::Mod3 => 0x0020,
+            &KeyButton::Mod4 => 0x0040,
+            &KeyButton::Mod5 => 0x0080,
+            &KeyButton::Button1 => 0x0100,
+            &KeyButton::Button2 => 0x0200,
+            &KeyButton::Button3 => 0x0400,
+            &KeyButton::Button4 => 0x0800,
+            &KeyButton::Button5 => 0x1000
+        }
     }
 }
 
