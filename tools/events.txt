@@ -1,0 +1,461 @@
+KeyPress
+     1     2                               code
+     1     KEYCODE                         detail
+     2     CARD16                          sequence number
+     4     TIMESTAMP                       time
+     4     WINDOW                          root
+     4     WINDOW                          event
+     4     WINDOW                          child
+          0     None
+     2     INT16                           root-x
+     2     INT16                           root-y
+     2     INT16                           event-x
+     2     INT16                           event-y
+     2     SETofKEYBUTMASK                 state
+     1     BOOL                            same-screen
+     1                                     unused
+
+KeyRelease
+     1     3                               code
+     1     KEYCODE                         detail
+     2     CARD16                          sequence number
+     4     TIMESTAMP                       time
+     4     WINDOW                          root
+     4     WINDOW                          event
+     4     WINDOW                          child
+          0     None
+     2     INT16                           root-x
+     2     INT16                           root-y
+     2     INT16                           event-x
+     2     INT16                           event-y
+     2     SETofKEYBUTMASK                 state
+     1     BOOL                            same-screen
+     1                                     unused
+
+ButtonPress
+     1     4                               code
+     1     BUTTON                          detail
+     2     CARD16                          sequence number
+     4     TIMESTAMP                       time
+     4     WINDOW                          root
+     4     WINDOW                          event
+     4     WINDOW                          child
+          0     None
+     2     INT16                           root-x
+     2     INT16                           root-y
+     2     INT16                           event-x
+     2     INT16                           event-y
+     2     SETofKEYBUTMASK                 state
+     1     BOOL                            same-screen
+     1                                     unused
+
+ButtonRelease
+     1     5                               code
+     1     BUTTON                          detail
+     2     CARD16                          sequence number
+     4     TIMESTAMP                       time
+     4     WINDOW                          root
+     4     WINDOW                          event
+     4     WINDOW                          child
+          0     None
+     2     INT16                           root-x
+     2     INT16                           root-y
+     2     INT16                           event-x
+     2     INT16                           event-y
+     2     SETofKEYBUTMASK                 state
+     1     BOOL                            same-screen
+     1                                     unused
+
+MotionNotify
+     1     6                               code
+     1                                     detail
+          0     Normal
+          1     Hint
+     2     CARD16                          sequence number
+     4     TIMESTAMP                       time
+     4     WINDOW                          root
+     4     WINDOW                          event
+     4     WINDOW                          child
+           0     None
+     2     INT16                           root-x
+     2     INT16                           root-y
+     2     INT16                           event-x
+     2     INT16                           event-y
+     2     SETofKEYBUTMASK                 state
+     1     BOOL                            same-screen
+     1                                     unused
+
+EnterNotify
+     1     7                               code
+     1                                     detail
+          0     Ancestor
+          1     Virtual
+          2     Inferior
+          3     Nonlinear
+          4     NonlinearVirtual
+     2     CARD16                          sequence number
+     4     TIMESTAMP                       time
+     4     WINDOW                          root
+     4     WINDOW                          event
+     4     WINDOW                          child
+          0     None
+     2     INT16                           root-x
+     2     INT16                           root-y
+     2     INT16                           event-x
+     2     INT16                           event-y
+     2     SETofKEYBUTMASK                 state
+     1                                     mode
+          0     Normal
+          1     Grab
+          2     Ungrab
+     1                                     same-screen, focus
+          #x01     focus (1 is True, 0 is False)
+          #x02     same-screen (1 is True, 0 is False)
+          #xFC     unused
+
+LeaveNotify
+     1     8                               code
+     1                                     detail
+          0     Ancestor
+          1     Virtual
+          2     Inferior
+          3     Nonlinear
+          4     NonlinearVirtual
+     2     CARD16                          sequence number
+     4     TIMESTAMP                       time
+     4     WINDOW                          root
+     4     WINDOW                          event
+     4     WINDOW                          child
+          0     None
+     2     INT16                           root-x
+     2     INT16                           root-y
+     2     INT16                           event-x
+     2     INT16                           event-y
+     2     SETofKEYBUTMASK                 state
+     1                                     mode
+          0     Normal
+          1     Grab
+          2     Ungrab
+     1                                     same-screen, focus
+          #x01     focus (1 is True, 0 is False)
+          #x02     same-screen (1 is True, 0 is False)
+          #xFC     unused
+
+FocusIn
+     1     9                               code
+     1                                     detail
+          0     Ancestor
+          1     Virtual
+          2     Inferior
+          3     Nonlinear
+          4     NonlinearVirtual
+          5     Pointer
+          6     PointerRoot
+          7     None
+     2     CARD16                          sequence number
+     4     WINDOW                          event
+     1                                     mode
+          0     Normal
+          1     Grab
+          2     Ungrab
+          3     WhileGrabbed
+     23                                    unused
+
+FocusOut
+     1     10                              code
+     1                                     detail
+          0     Ancestor
+          1     Virtual
+          2     Inferior
+          3     Nonlinear
+          4     NonlinearVirtual
+          5     Pointer
+          6     PointerRoot
+          7     None
+     2     CARD16                          sequence number
+     4     WINDOW                          event
+     1                                     mode
+          0     Normal
+          1     Grab
+          2     Ungrab
+          3     WhileGrabbed
+     23                                    unused
+
+KeymapNotify
+     1     11                              code
+     31    LISTofCARD8                     keys (byte for keycodes 0-7 is
+                                           omitted)
+
+Expose
+     1     12                              code
+     1                                     unused
+     2     CARD16                          sequence number
+     4     WINDOW                          window
+     2     CARD16                          x
+     2     CARD16                          y
+     2     CARD16                          width
+     2     CARD16                          height
+     2     CARD16                          count
+     14                                    unused
+
+GraphicsExposure
+     1     13                              code
+     1                                     unused
+     2     CARD16                          sequence number
+     4     DRAWABLE                        drawable
+     2     CARD16                          x
+     2     CARD16                          y
+     2     CARD16                          width
+     2     CARD16                          height
+     2     CARD16                          minor-opcode
+     2     CARD16                          count
+     1     CARD8                           major-opcode
+     11                                    unused
+
+NoExposure
+     1     14                              code
+     1                                     unused
+     2     CARD16                          sequence number
+     4     DRAWABLE                        drawable
+     2     CARD16                          minor-opcode
+     1     CARD8                           major-opcode
+     21                                    unused
+
+VisibilityNotify
+     1     15                              code
+     1                                     unused
+     2     CARD16                          sequence number
+     4     WINDOW                          window
+     1                                     state
+          0     Unobscured
+          1     PartiallyObscured
+          2     FullyObscured
+     23                                    unused
+
+CreateNotify
+     1     16                              code
+     1                                     unused
+     2     CARD16                          sequence number
+     4     WINDOW                          parent
+     4     WINDOW                          window
+     2     INT16                           x
+     2     INT16                           y
+     2     CARD16                          width
+     2     CARD16                          height
+     2     CARD16                          border-width
+     1     BOOL                            override-redirect
+     9                                     unused
+
+DestroyNotify
+     1     17                              code
+     1                                     unused
+     2     CARD16                          sequence number
+     4     WINDOW                          event
+     4     WINDOW                          window
+     20                                    unused
+
+UnmapNotify
+     1     18                              code
+     1                                     unused
+     2     CARD16                          sequence number
+     4     WINDOW                          event
+     4     WINDOW                          window
+     1     BOOL                            from-configure
+     19                                    unused
+
+MapNotify
+     1     19                              code
+     1                                     unused
+     2     CARD16                          sequence number
+     4     WINDOW                          event
+     4     WINDOW                          window
+     1     BOOL                            override-redirect
+     19                                    unused
+
+MapRequest
+     1     20                              code
+     1                                     unused
+     2     CARD16                          sequence number
+     4     WINDOW                          parent
+     4     WINDOW                          window
+     20                                    unused
+
+ReparentNotify
+     1     21                              code
+     1                                     unused
+     2     CARD16                          sequence number
+     4     WINDOW                          event
+     4     WINDOW                          window
+     4     WINDOW                          parent
+     2     INT16                           x
+     2     INT16                           y
+     1     BOOL                            override-redirect
+     11                                    unused
+
+ConfigureNotify
+     1     22                              code
+     1                                     unused
+     2     CARD16                          sequence number
+     4     WINDOW                          event
+     4     WINDOW                          window
+     4     WINDOW                          above-sibling
+          0     None
+     2     INT16                           x
+     2     INT16                           y
+     2     CARD16                          width
+     2     CARD16                          height
+     2     CARD16                          border-width
+     1     BOOL                            override-redirect
+     5                                     unused
+
+ConfigureRequest
+     1     23                              code
+     1                                     stack-mode
+          0     Above
+          1     Below
+          2     TopIf
+          3     BottomIf
+          4     Opposite
+     2     CARD16                          sequence number
+     4     WINDOW                          parent
+     4     WINDOW                          window
+     4     WINDOW                          sibling
+          0     None
+     2     INT16                           x
+     2     INT16                           y
+     2     CARD16                          width
+     2     CARD16                          height
+     2     CARD16                          border-width
+     2     BITMASK                         value-mask
+          #x0001     x
+          #x0002     y
+          #x0004     width
+          #x0008     height
+          #x0010     border-width
+          #x0020     sibling
+          #x0040     stack-mode
+     4                                     unused
+
+GravityNotify
+     1     24                              code
+     1                                     unused
+     2     CARD16                          sequence number
+     4     WINDOW                          event
+     4     WINDOW                          window
+     2     INT16                           x
+     2     INT16                           y
+     16                                    unused
+
+ResizeRequest
+     1     25                              code
+     1                                     unused
+     2     CARD16                          sequence number
+     4     WINDOW                          window
+     2     CARD16                          width
+     2     CARD16                          height
+     20                                    unused
+
+CirculateNotify
+     1     26                              code
+     1                                     unused
+     2     CARD16                          sequence number
+     4     WINDOW                          event
+     4     WINDOW                          window
+     4     WINDOW                          unused
+     1                                     place
+          0     Top
+          1     Bottom
+     15                                    unused
+
+CirculateRequest
+     1     27                              code
+     1                                     unused
+     2     CARD16                          sequence number
+     4     WINDOW                          parent
+     4     WINDOW                          window
+     4                                     unused
+     1                                     place
+          0     Top
+          1     Bottom
+     15                                    unused
+
+PropertyNotify
+     1     28                              code
+     1                                     unused
+     2     CARD16                          sequence number
+     4     WINDOW                          window
+     4     ATOM                            atom
+     4     TIMESTAMP                       time
+     1                                     state
+          0     NewValue
+          1     Deleted
+     15                                    unused
+
+SelectionClear
+     1     29                              code
+     1                                     unused
+     2     CARD16                          sequence number
+     4     TIMESTAMP                       time
+     4     WINDOW                          owner
+     4     ATOM                            selection
+     16                                    unused
+
+SelectionRequest
+     1     30                              code
+     1                                     unused
+     2     CARD16                          sequence number
+     4     TIMESTAMP                       time
+          0     CurrentTime
+     4     WINDOW                          owner
+     4     WINDOW                          requestor
+     4     ATOM                            selection
+     4     ATOM                            target
+     4     ATOM                            property
+          0     None
+     4                                     unused
+
+SelectionNotify
+     1     31                              code
+     1                                     unused
+     2     CARD16                          sequence number
+     4     TIMESTAMP                       time
+          0     CurrentTime
+     4     WINDOW                          requestor
+     4     ATOM                            selection
+     4     ATOM                            target
+     4     ATOM                            property
+          0     None
+     8                                     unused
+
+ColormapNotify
+     1     32                              code
+     1                                     unused
+     2     CARD16                          sequence number
+     4     WINDOW                          window
+     4     COLORMAP                        colormap
+          0     None
+     1     BOOL                            new
+     1                                     state
+          0     Uninstalled
+          1     Installed
+     18                                    unused
+
+ClientMessage
+     1     33                              code
+     1     CARD8                           format
+     2     CARD16                          sequence number
+     4     WINDOW                          window
+     4     ATOM                            type
+     20                                    data
+
+MappingNotify
+     1     34                              code
+     1                                     unused
+     2     CARD16                          sequence number
+     1                                     request
+          0     Modifier
+          1     Keyboard
+          2     Pointer
+     1     KEYCODE                         first-keycode
+     1     CARD8                           count
+     25                                    unused

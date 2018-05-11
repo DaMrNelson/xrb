@@ -31,3 +31,8 @@ Using this to track what I have done in case I ever want to write something abou
     - Realize that I have made a huge mistake with how I am reading in and validating stuff. Go to switch to buffered reading of x characters then reading from that buffer.
         - This was actually a LOT to transfer too than I expected. What a pleasant surprise :)
     - Add ability to ignore messages from the X Server until you get a reply or error with the specified sequence number. Messages are stored for later, so you will not miss anything by using this.
+    - Start working on all of the request types (not their responses though)
+        - Get to SendEvent
+            - Up til now I have been doing things manually to learn the protocol and because I wanted to include some human intuition.
+            - I already did that, so I wrote a script to parse the protocol into code and used it for most of sending events
+            - It still took some manual tuning, but far less

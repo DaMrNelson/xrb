@@ -27,10 +27,9 @@ See tests/main.rs for some example usage.
     - All request types
         - Continue at GrabPointer
     - Replies (Crl+F "▶")
-        - Some are implemented. Lots are not though.
+        - NOTE: Even though I may "complete" all requests when done the above point, the replies may not be done. Check!
     - Map functions to objects (ie `window.destroy()` instead of `client.destroy_window(window.wid)`)
     - read_keymap_notify
-    - send_event (just procrastinating it rn)
     - Multithread usage?
         - Thread lock when creating new resource IDs. Or maybe just thread lock the entire thing? Idk yet.
     - Allow re-use of used resource IDs

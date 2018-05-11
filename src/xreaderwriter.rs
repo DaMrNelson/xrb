@@ -19,6 +19,7 @@ pub trait XBufferedWriter {
     fn write_i32(&mut self, input: i32);
     fn write_u32(&mut self, input: u32);
     fn write_str(&mut self, input: &str);
+    fn write_mask_u16(&mut self, input: Vec<u16>);
     fn write_val_bool(&mut self, input: bool);
     fn write_val_u8(&mut self, input: u8);
     fn write_val_i16(&mut self, input: i16);
@@ -30,6 +31,8 @@ pub trait XBufferedWriter {
 }
 
 pub trait XBufferedReader {
+    fn prep_read(&mut self, len: usize);
+    fn prep_read_extend(&mut self, len: usize);
     fn read_pad(&mut self, len: usize);
     fn read_bool(&mut self) -> bool;
     fn read_u8(&mut self) -> u8;
@@ -38,6 +41,7 @@ pub trait XBufferedReader {
     fn read_u32(&mut self) -> u32;
     fn read_char(&mut self) -> char;
     fn read_str(&mut self, len: usize) -> String;
+    fn read_raw(&mut self, len: usize) -> Vec<u8>;
 }
 
 /**
@@ -65,21 +69,8 @@ impl XReadHelper {
     }
 }
 
+// Errors and replies
 impl XReadHelper {
-    /** Reads the given bytes into the internal buffer */
-    pub fn prep_read(&mut self, len: usize) {
-        self.buf.resize(len, 0);
-        self.xin.read_exact(&mut self.buf).unwrap();
-        self.pos = 0;
-    }
-
-    /** Like prep_read, except it extends the current buffer by X bytes instead of replacing it, and does not reset pos */
-    pub fn prep_read_extend(&mut self, len: usize) {
-        let original_len = self.buf.len();
-        self.buf.resize(original_len + len, 0);
-        self.xin.read_exact(&mut self.buf[original_len..]).unwrap();
-    }
-
     /** Reads an error from the server (assumes first byte read) */
     pub fn read_error(&mut self, code: u8) -> Option<ServerError> {
         let info = self.read_u32(); // Always u32 or unused
@@ -200,7 +191,10 @@ impl XReadHelper {
             Some(ServerReply::ListFontsWithInfoEntry { min_bounds, max_bounds, min_char, max_char, default_char, draw_direction, min_byte, max_byte, all_chars_exist, font_ascent, font_descent, replies_hint, properties, name })
         }
     }
+}
 
+// Events
+impl XReadHelper {
     /** Reads a generic pointer event (assumes first byte read) and returns the results. This also reads the extra padding byte at the end, if there is one
      * Returns detail, sequence_number, time, root, event, child, root_x, root_y, event_x, event_y, state, same_screen, extra
      */
@@ -239,7 +233,7 @@ impl XReadHelper {
         )
     }
 
-    /** Reads a generic focu sevent (assumes first byte read) and returns the results. Also reads the padding. */
+    /** Reads a generic focus event (assumes first byte read) and returns the results. Also reads the padding. */
     pub fn read_focus_event(&mut self) -> (u32, u8, ()) {
         (
             self.read_u32(),
@@ -616,8 +610,10 @@ impl XReadHelper {
     pub fn read_client_message(&mut self, format: u8) -> Option<ServerEvent> {
         let window = self.read_u32();
         let mtype = self.read_u32();
-        self.read_pad(20);
-        Some(ServerEvent::ClientMessage { format, window, mtype })
+        let buf = self.read_raw(20);
+        let mut data = [0u8; 20];
+        data.clone_from_slice(&buf);
+        Some(ServerEvent::ClientMessage { format, window, mtype, data })
     }
 
     /** Reads an event from the server (assumes first byte read) */
@@ -634,6 +630,20 @@ impl XReadHelper {
 }
 
 impl XBufferedReader for XReadHelper {
+    /** Reads the given bytes into the internal buffer */
+    fn prep_read(&mut self, len: usize) {
+        self.buf.resize(len, 0);
+        self.xin.read_exact(&mut self.buf).unwrap();
+        self.pos = 0;
+    }
+
+    /** Like prep_read, except it extends the current buffer by X bytes instead of replacing it, and does not reset pos */
+    fn prep_read_extend(&mut self, len: usize) {
+        let original_len = self.buf.len();
+        self.buf.resize(original_len + len, 0);
+        self.xin.read_exact(&mut self.buf[original_len..]).unwrap();
+    }
+
     /**
      * Reads X bytes and ignores them.
      */
@@ -703,6 +713,20 @@ impl XBufferedReader for XReadHelper {
      */
     fn read_str(&mut self, len: usize) -> String {
         let x = String::from(str::from_utf8(&self.buf[self.pos..self.pos + len]).unwrap());
+        self.pos += len;
+        x
+    }
+
+    /**
+     * Reads raw bytes from the buffer.
+     */
+    fn read_raw(&mut self, len: usize) -> Vec<u8> {
+        let mut x = Vec::with_capacity(len);
+
+        for i in self.pos..self.pos + len {
+            x.push(self.buf[i]);
+        }
+
         self.pos += len;
         x
     }
