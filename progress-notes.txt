@@ -36,3 +36,4 @@ Using this to track what I have done in case I ever want to write something abou
             - Up til now I have been doing things manually to learn the protocol and because I wanted to include some human intuition.
             - I already did that, so I wrote a script to parse the protocol into code and used it for most of sending events
             - It still took some manual tuning, but far less
+        - Continue

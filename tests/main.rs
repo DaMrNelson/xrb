@@ -30,7 +30,7 @@ mod tests {
 
         // Create GC (graphics context)
         let gc = GraphicsContext {
-            cid: client.new_resource_id(),
+            gcid: client.new_resource_id(),
             drawable: client.connect_info.screens[0].root,
             values: vec![
                 GraphicsContextValue::Background(client.connect_info.screens[0].black_pixel),
@@ -78,7 +78,7 @@ mod tests {
             },
             _ => unreachable!()
         };
-        //client.list_fonts_with_info(5, "");
+        //client.list_fonts_with_info("", 5);
 
         // Main event loop
         loop {
