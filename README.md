@@ -6,13 +6,12 @@ This is still a work in progress, and things may not work. Feel free to submit s
 
 # So what's done?
 - Connect with no auth
-- Create and map a window with a pixmap and graphics context
+- 55/120 standard requests
 - Subscribe to events
 - Get events, errors, and two replies from the X Server
     - Temporarily ignore messages from the X Server until you get an error/reply with your sequence number (stores messages for later usage)
 
 # How Does It Work?
-- Connection is all async
 - A listener thread is spawned that reads messages from the server forever
     - This prevents deadlocking, since (by the spec) the X Server MAY not accept a new message until it has sent the reply to previous one
 - All write operations are done on the main thread
@@ -29,7 +28,11 @@ See tests/main.rs for some example usage.
     - Replies (Crl+F "▶")
         - NOTE: Even though I may "complete" all requests when done the above point, the replies may not be done. Check!
     - Map functions to objects (ie `window.destroy()` instead of `client.destroy_window(window.wid)`)
-    - read_keymap_notify
+    - Async versions for functions with replies (ie query_font(...), font.query(...))
+        - So they don't have to manually call wait_for_response(seq)
+    - Some skipped stuff
+        - read_keymap_notify
+        - set_font_path
     - Multithread usage?
         - Thread lock when creating new resource IDs. Or maybe just thread lock the entire thing? Idk yet.
     - Allow re-use of used resource IDs

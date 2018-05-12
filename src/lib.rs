@@ -424,7 +424,7 @@ impl XClient { // This is actually a pretty nice feature for organization
     pub fn (&mut self, ) {
         self.write_u8(protocol::OP_);
 
-        self.write_sequence(ServerReplyType::None)
+        self.write_sequence(ServerReplyType::)
         self.write_request();
     }
     */
@@ -603,11 +603,11 @@ impl XClient { // This is actually a pretty nice feature for organization
     pub fn intern_atom(&mut self, name: &str, only_if_exists: bool) -> u16 {
         self.write_u8(protocol::OP_INTERN_ATOM);
         self.write_bool(only_if_exists);
-        self.write_u16((2 + name.len() + name.len() % 4) as u16 / 4);
+        let pad = self.write_dynamic_len(2, name.len());
         self.write_u16(name.len() as u16);
         self.write_pad(2);
         self.write_str(name);
-        self.write_pad_op(name.len() % 4);
+        self.write_pad_op(pad);
 
         self.write_sequence(ServerReplyType::InternAtom)
     }
@@ -635,7 +635,7 @@ impl XClient { // This is actually a pretty nice feature for organization
             };
         self.write_u8(protocol::OP_CHANGE_PROPERTY);
         self.write_u8(mode.val());
-        self.write_u16(6 + (data.len() / 4 + data.len() % 4) as u16);
+        let pad = self.write_dynamic_len(6, data.len());
         self.write_u32(wid);
         self.write_u32(property);
         self.write_u32(ptype);
@@ -742,7 +742,14 @@ impl XClient { // This is actually a pretty nice feature for organization
      * `destination` = 0 = PointerWindow
      * `destination` = 1 = InputFocus
      */
-    pub fn send_event(&mut self, event: ServerEvent, propagate: bool, destination: u32) {
+    pub fn send_event(&mut self, event: ServerEvent, propagate: bool, destination: u32, events: Vec<Event>) {
+        self.write_u8(protocol::OP_SEND_EVENT);
+        self.write_bool(propagate);
+        self.write_u16(11);
+        self.write_u32(destination);
+        self.write_mask_u32(events.iter().map(|val| val.val()).collect());
+
+        // Write body
         let seq = self.current_sequence;
         match event {
             ServerEvent::KeyPress { key_code, time, root, event, child, root_x, root_y, event_x, event_y, state, same_screen } => {
@@ -1170,20 +1177,354 @@ impl XClient { // This is actually a pretty nice feature for organization
         };
     }
 
-    // TODO: Continue at GrabPointer
-    // Don't forget about the template above (search "fn (")
+    /**
+     * Tells the X Server to [TODO]
+     * `confine_to` = 0 = none
+     * `cursor` = 0 = none
+     * `time` = 0 = current time
+     */
+    pub fn grab_pointer(&mut self, grab_window: u32, confine_to: u32, cursor: u32, events: Vec<PointerEvent>, pointer_mode: PointerMode, keyboard_mode: KeyboardMode, owner_events: bool, time: u32) -> u16 {
+        self.write_u8(protocol::OP_GRAB_POINTER);
+        self.write_bool(owner_events);
+        self.write_u16(6);
+        self.write_u32(grab_window);
+        self.write_mask_u16(events.iter().map(|val| val.val()).collect());
+        self.write_u8(pointer_mode.val());
+        self.write_u8(keyboard_mode.val());
+        self.write_u32(confine_to);
+        self.write_u32(cursor);
+        self.write_u32(time);
 
-    /** Lists all fonts with the given info */
-    pub fn list_fonts_with_info(&mut self, max_names: u16, pattern: &str) -> u16 {
-        self.write_u8(protocol::OP_LIST_FONTS_WITH_INFO);
+        self.write_sequence(ServerReplyType::GrabPointer)
+    }
+
+    /**
+     * Tells the X Server to [TODO] 
+     * `time` = 0 = current time
+     */
+    pub fn ungrab_pointer(&mut self, time: u32) {
+        self.write_u8(protocol::OP_UNGRAB_POINTER);
         self.write_pad(1);
-        self.write_u16(2 + (pattern.len() + pattern.len() % 4) as u16 / 4);
+        self.write_u16(2);
+        self.write_u32(time);
+
+        self.write_request();
+    }
+    
+    /**
+     * Tells the X Server to [TODO]
+     * `confine-to` = 0 = none
+     * `cursor` = 0 = none
+     * `button` = 0 = any button
+     * `modifiers` = 0x8000 = any modifier
+     */
+    pub fn grab_button(&mut self, button: u8, grab_window: u32, confine_to: u32, cursor: u32, events: Vec<PointerEvent>, pointer_mode: PointerMode, keyboard_mode: KeyboardMode, modifiers: Vec<Key>, owner_events: bool) {
+        self.write_u8(protocol::OP_GRAB_BUTTON);
+        self.write_bool(owner_events);
+        self.write_u16(6);
+        self.write_u32(grab_window);
+        self.write_mask_u16(events.iter().map(|val| val.val()).collect());
+        self.write_u8(pointer_mode.val());
+        self.write_u8(keyboard_mode.val());
+        self.write_u32(confine_to);
+        self.write_u32(cursor);
+        self.write_u8(button);
+        self.write_pad(1);
+        self.write_mask_u16(modifiers.iter().map(|val| val.val()).collect());
+
+        self.write_request();
+    }
+
+    /**
+     * Tells the X Server to [TODO] 
+     * `button` = 0 = any button
+     * `modifiers` = 0x8000 = any modifier
+     */
+    pub fn ungrab_button(&mut self, button: u8, grab_window: u32, modifiers: Vec<Key>) {
+        self.write_u8(protocol::OP_UNGRAB_BUTTON);
+        self.write_u8(button);
+        self.write_u16(3);
+        self.write_u32(grab_window);
+        self.write_mask_u16(modifiers.iter().map(|val| val.val()).collect());
+        self.write_pad(2);
+
+        self.write_request();
+    }
+
+    /**
+     * Tells the X Server to [TODO]
+     * `cursor` = 0 = none
+     * `time` = 0 = current time
+     */
+    pub fn change_active_pointer_grab(&mut self, cursor: u32, time: u32, events: Vec<PointerEvent>) {
+        self.write_u8(protocol::OP_CHANGE_ACTIVE_POINTER_GRAB);
+        self.write_pad(1);
+        self.write_u16(4);
+        self.write_u32(cursor);
+        self.write_u32(time);
+        self.write_mask_u16(events.iter().map(|val| val.val()).collect());
+        self.write_pad(2);
+
+        self.write_request();
+    }
+
+    /**
+     * Tells the X Server to [TODO]
+     * `time` = 0 = current time
+     */
+    pub fn grab_keyboard(&mut self, grab_window: u32, pointer_mode: PointerMode, keyboard_mode: KeyboardMode, owner_events: bool, time: u32) -> u16 {
+        self.write_u8(protocol::OP_GRAB_KEYBOARD);
+        self.write_bool(owner_events);
+        self.write_u16(4);
+        self.write_u32(grab_window);
+        self.write_u32(time);
+        self.write_u8(pointer_mode.val());
+        self.write_u8(keyboard_mode.val());
+        self.write_pad(2);
+
+        self.write_sequence(ServerReplyType::GrabKeyboard)
+    }
+
+    /**
+     * Tells the X Server to [TODO]
+     * `time` = 0 = current time
+     */
+    pub fn ungrab_keyboard(&mut self, time: u32) {
+        self.write_u8(protocol::OP_UNGRAB_KEYBOARD);
+        self.write_pad(1);
+        self.write_u16(2);
+        self.write_u32(time);
+
+        self.write_request();
+    }
+
+    /**
+     * Tells the X Server to [TODO]
+     * `modifiers` = 0x8000 = any modifier
+     * `key` = 0 = any key
+     */
+    pub fn grab_key(&mut self, key: char, grab_window: u32, pointer_mode: PointerMode, keyboard_mode: KeyboardMode, modifiers: Vec<Key>, owner_events: bool) {
+        self.write_u8(protocol::OP_GRAB_KEY);
+        self.write_bool(owner_events);
+        self.write_u16(4);
+        self.write_u32(grab_window);
+        self.write_mask_u16(modifiers.iter().map(|val| val.val()).collect());
+        self.write_u8(key as u8);
+        self.write_u8(pointer_mode.val());
+        self.write_u8(keyboard_mode.val());
+        self.write_pad(3);
+
+        self.write_request();
+    }
+
+    /**
+     * Tells the X Server to [TODO]
+     * `key` = 0 = any key
+     * `modifiers` = 0x8000 = any modifier
+     */
+    pub fn ungrab_key(&mut self, key: char, grab_window: u32, modifiers: Vec<Key>) {
+        self.write_u8(protocol::OP_UNGRAB_KEY);
+        self.write_u8(key as u8);
+        self.write_u16(3);
+        self.write_u32(grab_window);
+        self.write_mask_u16(modifiers.iter().map(|val| val.val()).collect());
+        self.write_pad(2);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn grab_server(&mut self) {
+        self.write_u8(protocol::OP_GRAB_SERVER);
+        self.write_pad(1);
+        self.write_u16(1);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn ungrab_server(&mut self) {
+        self.write_u8(protocol::OP_UNGRAB_SERVER);
+        self.write_pad(1);
+        self.write_u16(1);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn query_pointer(&mut self, wid: u32) -> u16 {
+        self.write_u8(protocol::OP_QUERY_POINTER);
+        self.write_pad(1);
+        self.write_u16(2);
+        self.write_u32(wid);
+
+        self.write_sequence(ServerReplyType::QueryPointer)
+    }
+
+    /**
+     * Tells the X Server to [TODO]
+     * `start` = 0 = current time
+     * `stop` = 0 = current time
+     */
+    pub fn get_motion_events(&mut self, wid: u32, start: u32, stop: u32) -> u16 {
+        self.write_u8(protocol::OP_GET_MOTION_EVENTS);
+        self.write_pad(1);
+        self.write_u16(4);
+        self.write_u32(wid);
+        self.write_u32(start);
+        self.write_u32(stop);
+
+        self.write_sequence(ServerReplyType::QueryPointer)
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn translate_coordinates(&mut self, src_window: u32, dst_window: u32, src_x: i16, src_y: i16) -> u16 {
+        self.write_u8(protocol::OP_TRANSLATE_COORDINATES);
+        self.write_pad(1);
+        self.write_u16(4);
+        self.write_u32(src_window);
+        self.write_u32(dst_window);
+        self.write_i16(src_x);
+        self.write_i16(src_y);
+
+        self.write_sequence(ServerReplyType::QueryPointer)
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn warp_pointer(&mut self, src_window: u32, dst_window: u32, src_x: i16, src_y: i16, src_width: u16, src_height: u16, dst_x: i16, dst_y: i16) {
+        self.write_u8(protocol::OP_WARP_POINTER);
+        self.write_pad(1);
+        self.write_u16(6);
+        self.write_u32(src_window);
+        self.write_u32(dst_window);
+        self.write_i16(src_x);
+        self.write_i16(src_y);
+        self.write_u16(src_width);
+        self.write_u16(src_height);
+        self.write_i16(dst_x);
+        self.write_i16(dst_y);
+
+        self.write_request();
+    }
+
+    /**
+     * Tells the X Server to [TODO]
+     * `time` = 0 = current time
+     */
+    pub fn set_input_focus(&mut self, focus: u32, revert_to: InputFocusRevert, time: u32) {
+        self.write_u8(protocol::OP_SET_INPUT_FOCUS);
+        self.write_u8(revert_to.val());
+        self.write_u16(3);
+        self.write_u32(focus);
+        self.write_u32(time);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn get_input_focus(&mut self) -> u16 {
+        self.write_u8(protocol::OP_GET_INPUT_FOCUS);
+        self.write_pad(1);
+        self.write_u16(1);
+
+        self.write_sequence(ServerReplyType::GetInputFocus)
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn query_keymap(&mut self) -> u16 {
+        self.write_u8(protocol::OP_QUERY_KEYMAP);
+        self.write_pad(1);
+        self.write_u16(1);
+
+        self.write_sequence(ServerReplyType::QueryKeymap)
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn open_font(&mut self, fid: u32, name: &str) {
+        self.write_u8(protocol::OP_OPEN_FONT);
+        self.write_pad(1);
+        let pad = self.write_dynamic_len(3, name.len());
+        self.write_u32(fid);
+        self.write_u16(name.len() as u16);
+        self.write_pad(2);
+        self.write_str(name);
+        self.write_pad_op(pad);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn close_font(&mut self, fid: u32) {
+        self.write_u8(protocol::OP_CLOSE_FONT);
+        self.write_pad(1);
+        self.write_u16(2);
+        self.write_u32(fid);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn query_font(&mut self, fid: u32) -> u16 {
+        self.write_u8(protocol::OP_QUERY_FONT);
+        self.write_pad(1);
+        self.write_u16(2);
+        self.write_u32(fid);
+
+        self.write_sequence(ServerReplyType::QueryFont)
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn query_text_extents(&mut self, fid: u32, text: &str) -> u16 {
+        self.write_u8(protocol::OP_QUERY_TEXT_EXTENTS);
+        self.write_bool(text.len() % 2 == 1);
+        let pad = self.write_dynamic_len(2, text.len());
+        self.write_u32(fid);
+        self.write_str(text);
+        self.write_pad_op(pad);
+
+        self.write_sequence(ServerReplyType::QueryTextExtents)
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn list_fonts(&mut self, pattern: &str, max_names: u16) -> u16 {
+        self.write_u8(protocol::OP_LIST_FONTS);
+        self.write_pad(1);
+        let pad = self.write_dynamic_len(2, pattern.len());
         self.write_u16(max_names);
         self.write_u16(pattern.len() as u16);
         self.write_str(pattern);
-        self.write_pad_op(pattern.len() % 4);
+        self.write_pad_op(pad);
+
+        self.write_sequence(ServerReplyType::ListFonts)
+    }
+
+    /** Lists all fonts with the given info */
+    pub fn list_fonts_with_info(&mut self, pattern: &str, max_names: u16) -> u16 {
+        self.write_u8(protocol::OP_LIST_FONTS_WITH_INFO);
+        self.write_pad(1);
+        let pad = self.write_dynamic_len(2, pattern.len());
+        self.write_u16(max_names);
+        self.write_u16(pattern.len() as u16);
+        self.write_str(pattern);
+        self.write_pad_op(pad);
 
         self.write_sequence(ServerReplyType::ListFontsWithInfo)
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn set_font_path(&mut self) {
+        self.write_u8(protocol::OP_SET_FONT_PATH);
+        panic!("Not implemented yet"); // TODO
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn get_font_path(&mut self) -> u16 {
+        self.write_u8(protocol::OP_GET_FONT_PATH);
+        self.write_pad(1);
+        self.write_u16(1);
+
+        self.write_sequence(ServerReplyType::GetFontPath)
     }
 
     /** Tells the X Server to create a pixmap */
@@ -1199,17 +1540,65 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_request();
     }
 
+    /** Tells the X Server to [TODO] */
+    pub fn free_pixmap(&mut self, pixmap: u32) {
+        self.write_u8(protocol::OP_FREE_PIXMAP);
+        self.write_pad(1);
+        self.write_u16(2);
+        self.write_u32(pixmap);
+
+        self.write_request();
+    }
+
     /** Tells the X Server to create a graphics context */
     pub fn create_gc(&mut self, gc: GraphicsContext) {
         self.write_u8(protocol::OP_CREATE_GC);
         self.write_pad(1);
         self.write_u16(4 + gc.values.len() as u16);
-        self.write_u32(gc.cid);
+        self.write_u32(gc.gcid);
         self.write_u32(gc.drawable);
         self.write_values(&gc.values);
 
         self.write_request();
     }
+
+    /** Tells the X Server to create a graphics context */
+    pub fn change_gc(&mut self, gcid: u32, values: Vec<GraphicsContextValue>) {
+        self.write_u8(protocol::OP_CHANGE_GC);
+        self.write_pad(1);
+        self.write_u16(3 + values.len() as u16);
+        self.write_u32(gcid);
+        self.write_values(&values);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn copy_gc(&mut self, src_gc: u32, dst_gc: u32, values_to_copy: Vec<GraphicsContextMask>) {
+        self.write_u8(protocol::OP_COPY_GC);
+        self.write_pad(1);
+        self.write_u16(4);
+        self.write_u32(src_gc);
+        self.write_u32(dst_gc);
+        self.write_mask_u32(values_to_copy.iter().map(|val| val.val()).collect());
+
+        self.write_request();
+    }
+
+    /* I also put the template down here for now. Again, this template is not required, it is just useful.
+    /** Tells the X Server to [TODO] */
+    pub fn (&mut self, ) -> u16 {
+    pub fn (&mut self, ) {
+        self.write_u8(protocol::OP_);
+        // TODO: Do this
+
+        self.write_sequence(ServerReplyType::)
+        self.write_request();
+    }
+    */
+
+    // TODO: Continue at [see last one above]
+    // Don't forget about the template above (search "fn (")
 }
 
 impl XBufferedWriter for XClient {
@@ -1256,6 +1645,19 @@ impl XBufferedWriter for XClient {
     fn write_pad_op(&mut self, len: usize) {
         if len != 0 {
             self.write_pad(len);
+        }
+    }
+    
+    /**
+     * Writes a u16 defining the length specifier for a request, and returns the padding that would be required if there is one variable (in bytes).
+     */
+    fn write_dynamic_len(&mut self, base: u16, len: usize) -> usize {
+        if len % 4 == 0 {
+            self.write_u16(base + len as u16 / 4);
+            return 0;
+        } else {
+            self.write_u16(base + len as u16 / 4 + 1);
+            return len % 4;
         }
     }
 
@@ -1338,6 +1740,19 @@ impl XBufferedWriter for XClient {
         }
         
         self.write_u16(mask);
+    }
+
+    /**
+     * Writes a mask based off some u32 values.
+     */
+    fn write_mask_u32(&mut self, input: Vec<u32>) {
+        let mut mask = 0;
+
+        for val in input.iter() {
+            mask |= val;
+        }
+        
+        self.write_u32(mask);
     }
 
     /**

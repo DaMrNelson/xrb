@@ -9,11 +9,6 @@ pub trait Value {
     fn write<T: XBufferedWriter>(&self, client: &mut T);
 }
 
-// Root trait for all valued types
-pub trait Valued {
-    fn val(&self) -> u32;
-}
-
 ////////////////////////////////////////
 /// XRB TYPES
 ////////////////////////////////////////
@@ -175,7 +170,7 @@ pub struct Pixmap {
 
 #[derive(Debug)]
 pub struct GraphicsContext {
-    pub cid: u32, // Graphic Context ID
+    pub gcid: u32, // Graphic Context ID
     pub drawable: u32, // Window or Pixmap ID
     pub values: Vec<GraphicsContextValue>
 }
@@ -639,8 +634,8 @@ pub enum BitOrder {
     LeastSignificant,
     MostSignificant
 }
-impl Valued for BitOrder {
-    fn val(&self) -> u32 {
+impl BitOrder {
+    pub fn val(&self) -> u32 {
         match self {
             &BitOrder::LeastSignificant => 0,
             &BitOrder::MostSignificant => 1
@@ -653,8 +648,8 @@ pub enum ByteOrder {
     LSBFirst = 0,
     MSBFirst = 1
 }
-impl Valued for ByteOrder {
-    fn val(&self) -> u32 {
+impl ByteOrder {
+    pub fn val(&self) -> u32 {
         match self {
             &ByteOrder::LSBFirst => 0,
             &ByteOrder::MSBFirst => 1
@@ -690,8 +685,8 @@ pub enum Event {
     ColormapChange,
     OwnerGrabButton
 }
-impl Valued for Event {
-    fn val(&self) -> u32 {
+impl Event {
+    pub fn val(&self) -> u32 {
         match self {
             &Event::KeyPress => 0x00000001,
             &Event::KeyRelease => 0x00000002,
@@ -738,22 +733,22 @@ pub enum PointerEvent {
     ButtonMotion,
     KeymapState
 }
-impl Valued for PointerEvent {
-    fn val(&self) -> u32 {
+impl PointerEvent {
+    pub fn val(&self) -> u16 {
         match self {
-            &PointerEvent::ButtonPress => 0x00000004,
-            &PointerEvent::ButtonRelease => 0x00000008,
-            &PointerEvent::EnterWindow => 0x00000010,
-            &PointerEvent::LeaveWindow => 0x00000020,
-            &PointerEvent::PointerMotion => 0x00000040,
-            &PointerEvent::PointerMotionHint => 0x00000080,
-            &PointerEvent::Button1Motion => 0x00000100,
-            &PointerEvent::Button2Motion => 0x00000200,
-            &PointerEvent::Button3Motion => 0x00000400,
-            &PointerEvent::Button4Motion => 0x00000800,
-            &PointerEvent::Button5Motion => 0x00001000,
-            &PointerEvent::ButtonMotion => 0x00002000,
-            &PointerEvent::KeymapState => 0x00004000
+            &PointerEvent::ButtonPress => 0x0004,
+            &PointerEvent::ButtonRelease => 0x0008,
+            &PointerEvent::EnterWindow => 0x0010,
+            &PointerEvent::LeaveWindow => 0x0020,
+            &PointerEvent::PointerMotion => 0x0040,
+            &PointerEvent::PointerMotionHint => 0x0080,
+            &PointerEvent::Button1Motion => 0x0100,
+            &PointerEvent::Button2Motion => 0x0200,
+            &PointerEvent::Button3Motion => 0x0400,
+            &PointerEvent::Button4Motion => 0x0800,
+            &PointerEvent::Button5Motion => 0x1000,
+            &PointerEvent::ButtonMotion => 0x2000,
+            &PointerEvent::KeymapState => 0x4000
         }
     }
 }
@@ -772,20 +767,159 @@ pub enum DeviceEvent {
     Button5Motion,
     ButtonMotion
 }
-impl Valued for DeviceEvent {
-    fn val(&self) -> u32 {
+impl DeviceEvent {
+    pub fn val(&self) -> u16 {
         match self {
-            &DeviceEvent::KeyPress => 0x00000001,
-            &DeviceEvent::KeyRelease => 0x00000002,
-            &DeviceEvent::ButtonPress => 0x00000004,
-            &DeviceEvent::ButtonRelease => 0x00000008,
-            &DeviceEvent::PointerMotion => 0x00000040,
-            &DeviceEvent::Button1Motion => 0x00000100,
-            &DeviceEvent::Button2Motion => 0x00000200,
-            &DeviceEvent::Button3Motion => 0x00000400,
-            &DeviceEvent::Button4Motion => 0x00000800,
-            &DeviceEvent::Button5Motion => 0x00001000,
-            &DeviceEvent::ButtonMotion => 0x00002000
+            &DeviceEvent::KeyPress => 0x0001,
+            &DeviceEvent::KeyRelease => 0x0002,
+            &DeviceEvent::ButtonPress => 0x0004,
+            &DeviceEvent::ButtonRelease => 0x0008,
+            &DeviceEvent::PointerMotion => 0x0040,
+            &DeviceEvent::Button1Motion => 0x0100,
+            &DeviceEvent::Button2Motion => 0x0200,
+            &DeviceEvent::Button3Motion => 0x0400,
+            &DeviceEvent::Button4Motion => 0x0800,
+            &DeviceEvent::Button5Motion => 0x1000,
+            &DeviceEvent::ButtonMotion => 0x2000
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum KeyButton {
+    Shift,
+    Lock,
+    Control,
+    Mod1,
+    Mod2,
+    Mod3,
+    Mod4,
+    Mod5,
+    Button1,
+    Button2,
+    Button3,
+    Button4,
+    Button5
+}
+impl KeyButton {
+    pub fn get(mask: u16) -> Vec<KeyButton> {
+        let mut v = vec![];
+        
+        if mask & 0x0001 == 0x0001 {
+            v.push(KeyButton::Shift);
+        }
+        if mask & 0x0002 == 0x0002 {
+            v.push(KeyButton::Lock);
+        }
+        if mask & 0x0004 == 0x0004 {
+            v.push(KeyButton::Control);
+        }
+        if mask & 0x0008 == 0x0008 {
+            v.push(KeyButton::Mod1);
+        }
+        if mask & 0x0010 == 0x0010 {
+            v.push(KeyButton::Mod2);
+        }
+        if mask & 0x0020 == 0x0020 {
+            v.push(KeyButton::Mod3);
+        }
+        if mask & 0x0040 == 0x0040 {
+            v.push(KeyButton::Mod4);
+        }
+        if mask & 0x0080 == 0x0080 {
+            v.push(KeyButton::Mod5);
+        }
+        if mask & 0x0100 == 0x0100 {
+            v.push(KeyButton::Button1);
+        }
+        if mask & 0x0200 == 0x0200 {
+            v.push(KeyButton::Button2);
+        }
+        if mask & 0x0400 == 0x0400 {
+            v.push(KeyButton::Button3);
+        }
+        if mask & 0x0800 == 0x0800 {
+            v.push(KeyButton::Button4);
+        }
+        if mask & 0x1000 == 0x1000 {
+            v.push(KeyButton::Button5);
+        }
+        
+        return v;
+    }
+
+    pub fn val(&self) -> u16 {
+        match self {
+            &KeyButton::Shift => 0x0001,
+            &KeyButton::Lock => 0x0002,
+            &KeyButton::Control => 0x0004,
+            &KeyButton::Mod1 => 0x0008,
+            &KeyButton::Mod2 => 0x0010,
+            &KeyButton::Mod3 => 0x0020,
+            &KeyButton::Mod4 => 0x0040,
+            &KeyButton::Mod5 => 0x0080,
+            &KeyButton::Button1 => 0x0100,
+            &KeyButton::Button2 => 0x0200,
+            &KeyButton::Button3 => 0x0400,
+            &KeyButton::Button4 => 0x0800,
+            &KeyButton::Button5 => 0x1000
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum Key {
+    Shift,
+    Lock,
+    Control,
+    Mod1,
+    Mod2,
+    Mod3,
+    Mod4,
+    Mod5
+}
+impl Key {
+    pub fn get(mask: u16) -> Vec<Key> {
+        let mut v = vec![];
+        
+        if mask & 0x0001 == 0x0001 {
+            v.push(Key::Shift);
+        }
+        if mask & 0x0002 == 0x0002 {
+            v.push(Key::Lock);
+        }
+        if mask & 0x0004 == 0x0004 {
+            v.push(Key::Control);
+        }
+        if mask & 0x0008 == 0x0008 {
+            v.push(Key::Mod1);
+        }
+        if mask & 0x0010 == 0x0010 {
+            v.push(Key::Mod2);
+        }
+        if mask & 0x0020 == 0x0020 {
+            v.push(Key::Mod3);
+        }
+        if mask & 0x0040 == 0x0040 {
+            v.push(Key::Mod4);
+        }
+        if mask & 0x0080 == 0x0080 {
+            v.push(Key::Mod5);
+        }
+        
+        return v;
+    }
+
+    pub fn val(&self) -> u16 {
+        match self {
+            &Key::Shift => 0x0001,
+            &Key::Lock => 0x0002,
+            &Key::Control => 0x0004,
+            &Key::Mod1 => 0x0008,
+            &Key::Mod2 => 0x0010,
+            &Key::Mod3 => 0x0020,
+            &Key::Mod4 => 0x0040,
+            &Key::Mod5 => 0x0080
         }
     }
 }
@@ -796,8 +930,8 @@ pub enum ScreenBackingStores {
     WhenMapped,
     Always
 }
-impl Valued for ScreenBackingStores {
-    fn val(&self) -> u32 {
+impl ScreenBackingStores {
+    pub fn val(&self) -> u32 {
         match self {
             &ScreenBackingStores::Never => 0,
             &ScreenBackingStores::WhenMapped => 1,
@@ -815,8 +949,8 @@ pub enum VisualType {
     TrueColor,
     DirectColor
 }
-impl Valued for VisualType {
-    fn val(&self) -> u32 {
+impl VisualType {
+    pub fn val(&self) -> u32 {
         match self {
             &VisualType::StaticGray => 0,
             &VisualType::GrayScale => 1,
@@ -844,8 +978,8 @@ impl WindowInputType {
         }
     }
 }
-impl Valued for WindowInputType {
-    fn val(&self) -> u32 {
+impl WindowInputType {
+    pub fn val(&self) -> u32 {
         match self {
             &WindowInputType::CopyFromParent => 0,
             &WindowInputType::InputOutput => 1,
@@ -870,8 +1004,8 @@ impl WindowBackingStore {
         }
     }
 }
-impl Valued for WindowBackingStore {
-    fn val(&self) -> u32 {
+impl WindowBackingStore {
+    pub fn val(&self) -> u32 {
         match self {
             &WindowBackingStore::NotUseful => 0,
             &WindowBackingStore::WhenMapped => 1,
@@ -912,8 +1046,8 @@ impl BitGravity {
         }
     }
 }
-impl Valued for BitGravity {
-    fn val(&self) -> u32 {
+impl BitGravity {
+    pub fn val(&self) -> u32 {
         match self {
             &BitGravity::Forget => 0,
             &BitGravity::Static => 1,
@@ -962,8 +1096,8 @@ impl WindowGravity {
         }
     }
 }
-impl Valued for WindowGravity {
-    fn val(&self) -> u32 {
+impl WindowGravity {
+    pub fn val(&self) -> u32 {
         match self {
             &WindowGravity::Unmap => 0,
             &WindowGravity::Static => 1,
@@ -1031,8 +1165,8 @@ pub enum GCFunction {
 	Nand,
 	Set
 }
-impl Valued for GCFunction {
-    fn val(&self) -> u32 {
+impl GCFunction {
+    pub fn val(&self) -> u32 {
         match self {
             &GCFunction::Clear => 0,
             &GCFunction::And => 1,
@@ -1060,8 +1194,8 @@ pub enum GCLineStyle {
 	OnOffDash,
 	DoubleDash
 }
-impl Valued for GCLineStyle {
-    fn val(&self) -> u32 {
+impl GCLineStyle {
+    pub fn val(&self) -> u32 {
         match self {
             &GCLineStyle::Solid => 0,
             &GCLineStyle::OnOffDash => 1,
@@ -1077,8 +1211,8 @@ pub enum GCCapStyle {
 	Round,
 	Projecting
 }
-impl Valued for GCCapStyle {
-    fn val(&self) -> u32 {
+impl GCCapStyle {
+    pub fn val(&self) -> u32 {
         match self {
             &GCCapStyle::NotLast => 0,
             &GCCapStyle::Butt => 1,
@@ -1094,8 +1228,8 @@ pub enum GCJoinStyle {
 	Round,
 	Bevel
 }
-impl Valued for GCJoinStyle {
-    fn val(&self) -> u32 {
+impl GCJoinStyle {
+    pub fn val(&self) -> u32 {
         match self {
             &GCJoinStyle::Miter => 0,
             &GCJoinStyle::Round => 1,
@@ -1111,8 +1245,8 @@ pub enum GCFillStyle {
 	Stippled,
 	OpaqueStippled
 }
-impl Valued for GCFillStyle {
-    fn val(&self) -> u32 {
+impl GCFillStyle {
+    pub fn val(&self) -> u32 {
         match self {
             &GCFillStyle::Solid => 0,
             &GCFillStyle::Tiled => 1,
@@ -1127,8 +1261,8 @@ pub enum GCFillRule {
 	EvenOdd,
 	Winding
 }
-impl Valued for GCFillRule {
-    fn val(&self) -> u32 {
+impl GCFillRule {
+    pub fn val(&self) -> u32 {
         match self {
             &GCFillRule::EvenOdd => 0,
         	&GCFillRule::Winding => 1
@@ -1141,8 +1275,8 @@ pub enum GCSubWindowMode {
 	ClipByChildren = 0,
 	IncludeInferiors = 1
 }
-impl Valued for GCSubWindowMode {
-    fn val(&self) -> u32 {
+impl GCSubWindowMode {
+    pub fn val(&self) -> u32 {
         match self {
             &GCSubWindowMode::ClipByChildren => 0,
 	        &GCSubWindowMode::IncludeInferiors => 1
@@ -1155,8 +1289,8 @@ pub enum GCArcMode {
 	Chord,
 	PieSlice
 }
-impl Valued for GCArcMode {
-    fn val(&self) -> u32 {
+impl GCArcMode {
+    pub fn val(&self) -> u32 {
         match self {
             &GCArcMode::Chord => 0,
 	        &GCArcMode::PieSlice => 1
@@ -1281,6 +1415,31 @@ impl FocusMode {
             &FocusMode::Grab => 1,
             &FocusMode::Ungrab => 2,
             &FocusMode::WhileGrabbed => 3
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum InputFocusRevert {
+    None,
+    PointerRoot,
+    Parent
+}
+impl InputFocusRevert {
+    pub fn get(id: u8) -> Option<InputFocusRevert> {
+        match id {
+            0 => Some(InputFocusRevert::None),
+            1 => Some(InputFocusRevert::PointerRoot),
+            2 => Some(InputFocusRevert::Parent),
+            _ => None
+        }
+    }
+
+    pub fn val(&self) -> u8 {
+        match self {
+            &InputFocusRevert::None => 0,
+            &InputFocusRevert::PointerRoot => 1,
+            &InputFocusRevert::Parent => 2
         }
     }
 }
@@ -1509,88 +1668,6 @@ impl MappingType {
     }
 }
 
-#[derive(Debug)]
-pub enum KeyButton {
-    Shift,
-    Lock,
-    Control,
-    Mod1,
-    Mod2,
-    Mod3,
-    Mod4,
-    Mod5,
-    Button1,
-    Button2,
-    Button3,
-    Button4,
-    Button5
-}
-impl KeyButton {
-    pub fn get(mask: u16) -> Vec<KeyButton> {
-        let mut v = vec![];
-        
-        if mask & 0x0001 == 0x0001 {
-            v.push(KeyButton::Shift);
-        }
-        if mask & 0x0002 == 0x0002 {
-            v.push(KeyButton::Lock);
-        }
-        if mask & 0x0004 == 0x0004 {
-            v.push(KeyButton::Control);
-        }
-        if mask & 0x0008 == 0x0008 {
-            v.push(KeyButton::Mod1);
-        }
-        if mask & 0x0010 == 0x0010 {
-            v.push(KeyButton::Mod2);
-        }
-        if mask & 0x0020 == 0x0020 {
-            v.push(KeyButton::Mod3);
-        }
-        if mask & 0x0040 == 0x0040 {
-            v.push(KeyButton::Mod4);
-        }
-        if mask & 0x0080 == 0x0080 {
-            v.push(KeyButton::Mod5);
-        }
-        if mask & 0x0100 == 0x0100 {
-            v.push(KeyButton::Button1);
-        }
-        if mask & 0x0200 == 0x0200 {
-            v.push(KeyButton::Button2);
-        }
-        if mask & 0x0400 == 0x0400 {
-            v.push(KeyButton::Button3);
-        }
-        if mask & 0x0800 == 0x0800 {
-            v.push(KeyButton::Button4);
-        }
-        if mask & 0x1000 == 0x1000 {
-            v.push(KeyButton::Button5);
-        }
-        
-        return v;
-    }
-
-    pub fn val(&self) -> u16 {
-        match self {
-            &KeyButton::Shift => 0x0001,
-            &KeyButton::Lock => 0x0002,
-            &KeyButton::Control => 0x0004,
-            &KeyButton::Mod1 => 0x0008,
-            &KeyButton::Mod2 => 0x0010,
-            &KeyButton::Mod3 => 0x0020,
-            &KeyButton::Mod4 => 0x0040,
-            &KeyButton::Mod5 => 0x0080,
-            &KeyButton::Button1 => 0x0100,
-            &KeyButton::Button2 => 0x0200,
-            &KeyButton::Button3 => 0x0400,
-            &KeyButton::Button4 => 0x0800,
-            &KeyButton::Button5 => 0x1000
-        }
-    }
-}
-
 pub enum SaveSetMode {
     Insert,
     Delete
@@ -1632,6 +1709,88 @@ impl PropertyChangeMode {
     }
 }
 
+pub enum PointerMode {
+    Synchronous,
+    Asynchronous
+}
+impl PointerMode {
+    pub fn val(&self) -> u8 {
+        match self {
+            &PointerMode::Synchronous => 0,
+            &PointerMode::Asynchronous => 1
+        }
+    }
+}
+
+pub enum KeyboardMode {
+    Synchronous,
+    Asynchronous
+}
+impl KeyboardMode {
+    pub fn val(&self) -> u8 {
+        match self {
+            &KeyboardMode::Synchronous => 0,
+            &KeyboardMode::Asynchronous => 1
+        }
+    }
+}
+
+// TODO: PUT THAT HERE
+#[derive(Debug)]
+pub enum GraphicsContextMask {
+    Function,
+    PlaneMask,
+    Foreground,
+    Background,
+    LineWidth,
+    LineStyle,
+    CapStyle,
+    JoinStyle,
+    FillStyle,
+    FillRule,
+    Tile,
+    Stipple,
+    TileStippleXOrigin,
+    TileStippleYOrigin,
+    Font,
+    SubWindowMode,
+    GraphicsExposures,
+    ClipXOrigin,
+    ClipYOrigin,
+    ClipMask,
+    DashOffset,
+    Dashes,
+    ArcMode
+}
+impl GraphicsContextMask {
+    pub fn val(&self) -> u32 {
+        match self {
+            &GraphicsContextMask::Function => 0x00000001,
+            &GraphicsContextMask::PlaneMask => 0x00000002,
+            &GraphicsContextMask::Foreground => 0x00000004,
+            &GraphicsContextMask::Background => 0x00000008,
+            &GraphicsContextMask::LineWidth => 0x00000010,
+            &GraphicsContextMask::LineStyle => 0x00000020,
+            &GraphicsContextMask::CapStyle => 0x00000040,
+            &GraphicsContextMask::JoinStyle => 0x00000080,
+            &GraphicsContextMask::FillStyle => 0x00000100,
+            &GraphicsContextMask::FillRule => 0x00000200,
+            &GraphicsContextMask::Tile => 0x00000400,
+            &GraphicsContextMask::Stipple => 0x00000800,
+            &GraphicsContextMask::TileStippleXOrigin => 0x00001000,
+            &GraphicsContextMask::TileStippleYOrigin => 0x00002000,
+            &GraphicsContextMask::Font => 0x00004000,
+            &GraphicsContextMask::SubWindowMode => 0x00008000,
+            &GraphicsContextMask::GraphicsExposures => 0x00010000,
+            &GraphicsContextMask::ClipXOrigin => 0x00020000,
+            &GraphicsContextMask::ClipYOrigin => 0x00040000,
+            &GraphicsContextMask::ClipMask => 0x00080000,
+            &GraphicsContextMask::DashOffset => 0x00100000,
+            &GraphicsContextMask::Dashes => 0x00200000,
+            &GraphicsContextMask::ArcMode => 0x00400000
+        }
+    }
+}
 
 ////////////////////////////////////////
 /// VALUES
