@@ -6,13 +6,20 @@ use xreaderwriter::XBufferedWriter;
 // Root trait for all values (ie GraphicsContextValue)
 pub trait Value {
     fn get_mask(&self) -> u32;
-    fn write<T: XBufferedWriter>(&self, client: &mut T);
+    fn write(&self, client: &mut XClient);
 }
 
+//
+//
+//
+//
 ////////////////////////////////////////
 /// XRB TYPES
 ////////////////////////////////////////
-
+//
+//
+//
+//
 
 #[derive(Debug)]
 pub struct ConnectInfo {
@@ -61,174 +68,6 @@ impl ConnectInfo {
             vendor: String::new(),
             formats: vec![],
             screens: vec![]
-        }
-    }
-}
-
-
-////////////////////////////////////////
-/// X TYPES
-////////////////////////////////////////
-
-
-#[derive(Debug)]
-pub struct Screen {
-    pub root: u32,
-    pub default_colormap: u32,
-    pub white_pixel: u32,
-    pub black_pixel: u32,
-    pub current_input_masks: u32, // TODO: This sets SETOfEVENT, but I don't know where the spec for this is
-    pub width_in_pixels: u16,
-    pub height_in_pixels: u16,
-    pub width_in_millimeters: u16,
-    pub height_in_millimeters: u16,
-    pub min_installed_maps: u16,
-    pub max_installed_maps: u16,
-    pub root_visual: u32,
-    pub backing_stores: ScreenBackingStores,
-    pub save_unders: bool,
-    pub root_depth: u8,
-    pub num_depths: u8,
-    pub depths: Vec<Depth>
-}
-
-#[derive(Debug)]
-pub struct Window {
-    pub depth: u8,
-    pub wid: u32, // Window's ID
-    pub parent: u32,
-    pub x: i16,
-    pub y: i16,
-    pub width: u16,
-    pub height: u16,
-    pub border_width: u16,
-    pub class: WindowInputType,
-    pub visual_id: u32,
-    pub values: Vec<WindowValue>
-}
-
-impl Window {
-    pub fn change_attrs(&mut self, client: &mut XClient, values: Vec<WindowValue>) {
-        self.values = values;
-        client.change_window_attributes(self.wid, &self.values);
-    }
-
-    pub fn set_attr(&mut self, client: &mut XClient, value: WindowValue) {
-        let mut new_pos = self.values.len();
-
-        for (i, val) in self.values.iter().enumerate() {
-            if discriminant(val) == discriminant(&value) {
-                new_pos = i;
-                break;
-            }
-        }
-
-        if new_pos == self.values.len() {
-            self.values.push(value);
-        } else {
-            self.values.remove(new_pos);
-            self.values.insert(new_pos, value);
-        }
-
-        client.change_window_attributes(self.wid, &self.values);
-    }
-}
-
-#[derive(Debug)]
-pub struct Depth {
-    pub depth: u8,
-    pub num_visuals: u16,
-    pub visuals: Vec<Visual>
-}
-
-#[derive(Debug)]
-pub struct Format {
-    pub depth: u8,
-    pub bits_per_pixel: u8,
-    pub scanline_pad: u8
-}
-
-#[derive(Debug)]
-pub struct Visual {
-    pub id: u32,
-    pub class: VisualType,
-    pub bits_per_rgb_value: u8,
-    pub colormap_entries: u16,
-    pub red_mask: u32,
-    pub green_mask: u32,
-    pub blue_mask: u32
-}
-
-#[derive(Debug)]
-pub struct Pixmap {
-    pub depth: u8,
-    pub pid: u32, // Pixmap's ID
-    pub drawable: u32, // Window or Pixmap ID
-    pub width: u16,
-    pub height: u16
-}
-
-#[derive(Debug)]
-pub struct GraphicsContext {
-    pub gcid: u32, // Graphic Context ID
-    pub drawable: u32, // Window or Pixmap ID
-    pub values: Vec<GraphicsContextValue>
-}
-
-impl Screen {
-    pub fn empty() -> Screen {
-        Screen {
-            root: 0,
-            default_colormap: 0,
-            white_pixel: 0,
-            black_pixel: 0,
-            current_input_masks: 0,
-            width_in_pixels: 0,
-            height_in_pixels: 0,
-            width_in_millimeters: 0,
-            height_in_millimeters: 0,
-            min_installed_maps: 0,
-            max_installed_maps: 0,
-            root_visual: 0,
-            backing_stores: ScreenBackingStores::Never,
-            save_unders: false,
-            root_depth: 0,
-            num_depths: 0,
-            depths: vec![]
-        }
-    }
-}
-
-impl Depth {
-    pub fn empty() -> Depth {
-        Depth {
-            depth: 0,
-            num_visuals: 0,
-            visuals: vec![]
-        }
-    }
-}
-
-impl Format {
-    pub fn empty() -> Format {
-        Format {
-            depth: 0,
-            bits_per_pixel: 0,
-            scanline_pad: 0
-        }
-    }
-}
-
-impl Visual {
-    pub fn empty() -> Visual {
-        Visual {
-            id: 0,
-            class: VisualType::StaticGray,
-            bits_per_rgb_value: 0,
-            colormap_entries: 0,
-            red_mask: 0,
-            green_mask: 0,
-            blue_mask: 0
         }
     }
 }
@@ -623,11 +462,359 @@ pub enum ServerResponse {
     Event(ServerEvent, u16)
 }
 
+//
+//
+//
+//
+////////////////////////////////////////
+/// X COMMON TYPES
+////////////////////////////////////////
+//
+//
+//
+//
 
+#[derive(Debug)]
+pub struct Screen {
+    pub root: u32,
+    pub default_colormap: u32,
+    pub white_pixel: u32,
+    pub black_pixel: u32,
+    pub current_input_masks: u32, // TODO: This sets SETOfEVENT, but I don't know where the spec for this is
+    pub width_in_pixels: u16,
+    pub height_in_pixels: u16,
+    pub width_in_millimeters: u16,
+    pub height_in_millimeters: u16,
+    pub min_installed_maps: u16,
+    pub max_installed_maps: u16,
+    pub root_visual: u32,
+    pub backing_stores: ScreenBackingStores,
+    pub save_unders: bool,
+    pub root_depth: u8,
+    pub num_depths: u8,
+    pub depths: Vec<Depth>
+}
+impl Screen {
+    pub fn empty() -> Screen {
+        Screen {
+            root: 0,
+            default_colormap: 0,
+            white_pixel: 0,
+            black_pixel: 0,
+            current_input_masks: 0,
+            width_in_pixels: 0,
+            height_in_pixels: 0,
+            width_in_millimeters: 0,
+            height_in_millimeters: 0,
+            min_installed_maps: 0,
+            max_installed_maps: 0,
+            root_visual: 0,
+            backing_stores: ScreenBackingStores::Never,
+            save_unders: false,
+            root_depth: 0,
+            num_depths: 0,
+            depths: vec![]
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Window {
+    pub depth: u8,
+    pub wid: u32, // Window's ID
+    pub parent: u32,
+    pub x: i16,
+    pub y: i16,
+    pub width: u16,
+    pub height: u16,
+    pub border_width: u16,
+    pub class: WindowInputType,
+    pub visual_id: u32,
+    pub values: Vec<WindowValue>
+}
+
+impl Window {
+    pub fn change_attrs(&mut self, client: &mut XClient, values: Vec<WindowValue>) {
+        self.values = values;
+        client.change_window_attributes(self.wid, &self.values);
+    }
+
+    pub fn set_attr(&mut self, client: &mut XClient, value: WindowValue) {
+        let mut new_pos = self.values.len();
+
+        for (i, val) in self.values.iter().enumerate() {
+            if discriminant(val) == discriminant(&value) {
+                new_pos = i;
+                break;
+            }
+        }
+
+        if new_pos == self.values.len() {
+            self.values.push(value);
+        } else {
+            self.values.remove(new_pos);
+            self.values.insert(new_pos, value);
+        }
+
+        client.change_window_attributes(self.wid, &self.values);
+    }
+}
+
+#[derive(Debug)]
+pub struct Depth {
+    pub depth: u8,
+    pub num_visuals: u16,
+    pub visuals: Vec<Visual>
+}
+impl Depth {
+    pub fn empty() -> Depth {
+        Depth {
+            depth: 0,
+            num_visuals: 0,
+            visuals: vec![]
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Format {
+    pub depth: u8,
+    pub bits_per_pixel: u8,
+    pub scanline_pad: u8
+}
+impl Format {
+    pub fn empty() -> Format {
+        Format {
+            depth: 0,
+            bits_per_pixel: 0,
+            scanline_pad: 0
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Visual {
+    pub id: u32,
+    pub class: VisualType,
+    pub bits_per_rgb_value: u8,
+    pub colormap_entries: u16,
+    pub red_mask: u32,
+    pub green_mask: u32,
+    pub blue_mask: u32
+}
+impl Visual {
+    pub fn empty() -> Visual {
+        Visual {
+            id: 0,
+            class: VisualType::StaticGray,
+            bits_per_rgb_value: 0,
+            colormap_entries: 0,
+            red_mask: 0,
+            green_mask: 0,
+            blue_mask: 0
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Pixmap {
+    pub depth: u8,
+    pub pid: u32, // Pixmap's ID
+    pub drawable: u32, // Window or Pixmap ID
+    pub width: u16,
+    pub height: u16
+}
+
+#[derive(Debug)]
+pub struct GraphicsContext {
+    pub gcid: u32, // Graphic Context ID
+    pub drawable: u32, // Window or Pixmap ID
+    pub values: Vec<GraphicsContextValue>
+}
+
+#[derive(Debug)]
+pub struct Point {
+    pub x: i16,
+    pub y: i16
+}
+impl Point {
+    pub fn write(&self, client: &mut XClient) {
+        client.write_i16(self.x);
+        client.write_i16(self.y);
+    }
+}
+
+#[derive(Debug)]
+pub struct Rectangle {
+    pub x: i16,
+    pub y: i16,
+    pub width: u16,
+    pub height: u16
+}
+impl Rectangle {
+    pub fn write(&self, client: &mut XClient) {
+        client.write_i16(self.x);
+        client.write_i16(self.y);
+        client.write_u16(self.width);
+        client.write_u16(self.height);
+    }
+}
+
+#[derive(Debug)]
+pub struct Arc {
+    pub x: i16,
+    pub y: i16,
+    pub width: u16,
+    pub height: u16,
+    pub angle1: i16,
+    pub angle2: i16
+}
+impl Arc {
+    pub fn write(&self, client: &mut XClient) {
+        client.write_i16(self.x);
+        client.write_i16(self.y);
+        client.write_u16(self.width);
+        client.write_u16(self.height);
+        client.write_i16(self.angle1);
+        client.write_i16(self.angle2);
+    }
+}
+
+#[derive(Debug)]
+pub struct Segment {
+    x1: i16,
+    y1: i16,
+    x2: i16,
+    y2: i16
+}
+impl Segment {
+    pub fn write(&self, client: &mut XClient) {
+        client.write_i16(self.x1);
+        client.write_i16(self.y1);
+        client.write_i16(self.x2);
+        client.write_i16(self.y2);
+    }
+}
+
+pub trait TextItem8 {
+    fn len(&self) -> usize;
+    fn write(&self, client: &mut XClient);
+}
+
+#[derive(Debug)]
+pub struct TextItem8Text {
+    delta: i8,
+    text: str
+}
+impl TextItem8 for TextItem8Text {
+    fn len(&self) -> usize {
+        2 + self.text.len()
+    }
+
+    fn write(&self, client: &mut XClient) {
+        client.write_u8(self.text.len() as u8);
+        client.write_i8(self.delta);
+        client.write_str(&self.text);
+    }
+}
+
+#[derive(Debug)]
+pub struct TextItem8Font {
+    bytes: [u8; 4]
+}
+impl TextItem8 for TextItem8Font {
+    fn len(&self) -> usize {
+        4
+    }
+
+    fn write(&self, client: &mut XClient) {
+        client.write_raw(&self.bytes);
+    }
+}
+
+pub trait TextItem16 {
+    fn len(&self) -> usize;
+    fn write(&self, client: &mut XClient);
+}
+
+#[derive(Debug)]
+pub struct TextItem16Text {
+    delta: i8,
+    text: Vec<u16>
+}
+impl TextItem16 for TextItem16Text {
+    fn len(&self) -> usize {
+        2 + self.text.len() * 2
+    }
+
+    fn write(&self, client: &mut XClient) {
+        client.write_u8(self.text.len() as u8);
+        client.write_i8(self.delta);
+
+        for c in &self.text {
+            client.write_u16(*c);
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct TextItem16Font {
+    bytes: [u8; 4]
+}
+impl TextItem16 for TextItem16Font {
+    fn len(&self) -> usize {
+        5
+    }
+
+    fn write(&self, client: &mut XClient) {
+        client.write_u8(255);
+        client.write_raw(&self.bytes);
+    }
+}
+
+#[derive(Debug)]
+pub struct ColorItem {
+    pub pixel: u32,
+    pub red: u16,
+    pub green: u16,
+    pub blue: u16,
+    pub do_red: bool, // TODO: Is this supposed to be one of those or a mask of them?
+    pub do_green: bool,
+    pub do_blue: bool
+}
+impl ColorItem {
+    pub fn write(&self, client: &mut XClient) {
+        let mut mask = 0x00;
+        if self.do_red {
+            mask |= 0x01;
+        }
+        if self.do_green {
+            mask |= 0x02;
+        }
+        if self.do_blue {
+            mask |= 0x04;
+        }
+
+        client.write_u32(self.pixel);
+        client.write_u16(self.red);
+        client.write_u16(self.green);
+        client.write_u16(self.blue);
+        client.write_u8(mask);
+        client.write_pad(1);
+    }
+}
+
+//
+//
+//
+//
 ////////////////////////////////////////
 /// VALUED
 ////////////////////////////////////////
-
+//
+//
+//
+//
 
 #[derive(Debug)]
 pub enum BitOrder {
@@ -977,8 +1164,7 @@ impl WindowInputType {
             _ => None
         }
     }
-}
-impl WindowInputType {
+
     pub fn val(&self) -> u32 {
         match self {
             &WindowInputType::CopyFromParent => 0,
@@ -1003,8 +1189,7 @@ impl WindowBackingStore {
             _ => None
         }
     }
-}
-impl WindowBackingStore {
+
     pub fn val(&self) -> u32 {
         match self {
             &WindowBackingStore::NotUseful => 0,
@@ -1045,8 +1230,7 @@ impl BitGravity {
             _ => None
         }
     }
-}
-impl BitGravity {
+
     pub fn val(&self) -> u32 {
         match self {
             &BitGravity::Forget => 0,
@@ -1095,8 +1279,7 @@ impl WindowGravity {
             _ => None
         }
     }
-}
-impl WindowGravity {
+
     pub fn val(&self) -> u32 {
         match self {
             &WindowGravity::Unmap => 0,
@@ -1735,7 +1918,6 @@ impl KeyboardMode {
     }
 }
 
-// TODO: PUT THAT HERE
 #[derive(Debug)]
 pub enum GraphicsContextMask {
     Function,
@@ -1792,10 +1974,203 @@ impl GraphicsContextMask {
     }
 }
 
+#[derive(Debug)]
+pub enum RectangleOrdering {
+    UnSorted,
+    YSorted,
+    YXSorted,
+    YXBanded
+}
+impl RectangleOrdering {
+    pub fn val(&self) -> u8 {
+        match self {
+            &RectangleOrdering::UnSorted => 0,
+            &RectangleOrdering::YSorted => 1,
+            &RectangleOrdering::YXSorted => 2,
+            &RectangleOrdering::YXBanded => 3
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum CoordinateMode {
+    Origin,
+    Previous
+}
+impl CoordinateMode {
+    pub fn val(&self) -> u8 {
+        match self {
+            &CoordinateMode::Origin => 0,
+            &CoordinateMode::Previous => 1
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum PolyShape {
+    Complex,
+    Nonconvex,
+    Convex
+}
+impl PolyShape {
+    pub fn val(&self) -> u8 {
+        match self {
+            &PolyShape::Complex => 0,
+            &PolyShape::Nonconvex => 1,
+            &PolyShape::Convex => 2,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum ImageFormat {
+    Bitmap,
+    XYPixmap,
+    ZPixmap
+}
+impl ImageFormat {
+    pub fn val(&self) -> u8 {
+        match self {
+            &ImageFormat::Bitmap => 0,
+            &ImageFormat::XYPixmap => 1,
+            &ImageFormat::ZPixmap => 2,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum AllocMode {
+    None,
+    All
+}
+impl AllocMode {
+    pub fn val(&self) -> u8 {
+        match self {
+            &AllocMode::None => 0,
+            &AllocMode::All => 1
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum SizeClass {
+    Cursor,
+    Tile,
+    Stipple
+}
+impl SizeClass {
+    pub fn val(&self) -> u8 {
+        match self {
+            &SizeClass::Cursor => 0,
+            &SizeClass::Tile => 1,
+            &SizeClass::Stipple => 2
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum KeyboardControlLedMode {
+    Off,
+    On
+}
+impl KeyboardControlLedMode {
+    pub fn val(&self) -> u8 {
+        match self {
+            &KeyboardControlLedMode::Off => 0,
+            &KeyboardControlLedMode::On => 1
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum KeyboardControlAutoRepeatMode {
+    Off,
+    On,
+    Default
+}
+impl KeyboardControlAutoRepeatMode {
+    pub fn val(&self) -> u8 {
+        match self {
+            &KeyboardControlAutoRepeatMode::Off => 0,
+            &KeyboardControlAutoRepeatMode::On => 1,
+            &KeyboardControlAutoRepeatMode::Default => 2
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum YesNoDefault {
+    No,
+    Yes,
+    Default
+}
+impl YesNoDefault {
+    pub fn val(&self) -> u8 {
+        match self {
+            &YesNoDefault::No => 0,
+            &YesNoDefault::Yes => 1,
+            &YesNoDefault::Default => 2
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum HostFamily {
+    Internet,
+    DECnet,
+    Chaos
+}
+impl HostFamily {
+    pub fn val(&self) -> u8 {
+        match self {
+            &HostFamily::Internet => 0,
+            &HostFamily::DECnet => 1,
+            &HostFamily::Chaos => 2
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum ChangeHostMode {
+    Insert,
+    Delete
+}
+impl ChangeHostMode {
+    pub fn val(&self) -> u8 {
+        match self {
+            &ChangeHostMode::Insert => 0,
+            &ChangeHostMode::Delete => 1
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum CloseDownMode {
+    Destroy,
+    RetainPermanent,
+    RetainTemporary
+}
+impl CloseDownMode {
+    pub fn val(&self) -> u8 {
+        match self {
+            &CloseDownMode::Destroy => 0,
+            &CloseDownMode::RetainPermanent => 1,
+            &CloseDownMode::RetainTemporary => 2
+        }
+    }
+}
+
+//
+//
+//
+//
 ////////////////////////////////////////
 /// VALUES
 ////////////////////////////////////////
-
+//
+//
+//
+//
 
 #[derive(Debug)]
 pub enum WindowValue {
@@ -1843,11 +2218,29 @@ pub enum GraphicsContextValue {
     ArcMode(GCArcMode)
 }
 
+#[derive(Debug)]
+pub enum KeyboardControlValue {
+    KeyClickPercent(u8),
+    BellPercent(u8),
+    BellPitch(i16),
+    BellDuration(i16),
+    Led(u8),
+    LedMode(KeyboardControlLedMode),
+    Key(char),
+    AutoRepeatMode(KeyboardControlAutoRepeatMode)
+}
 
+//
+//
+//
+//
 ////////////////////////////////////////
 /// VALUES METHODS
 ////////////////////////////////////////
-
+//
+//
+//
+//
 
 impl Value for WindowValue {
     fn get_mask(&self) -> u32 {
@@ -1870,7 +2263,7 @@ impl Value for WindowValue {
         }
     }
 
-    fn write<T: XBufferedWriter>(&self, client: &mut T) {
+    fn write(&self, client: &mut XClient) {
         match self {
             &WindowValue::BackgroundPixmap(val) => client.write_val_u32(val),
             &WindowValue::BackgroundPixel(val) => client.write_val_u32(val),
@@ -1920,7 +2313,7 @@ impl Value for GraphicsContextValue {
         }
     }
 
-    fn write<T: XBufferedWriter>(&self, client: &mut T) {
+    fn write(&self, client: &mut XClient) {
         match self {
             &GraphicsContextValue::Function(ref val) => client.write_val(val.val()),
             &GraphicsContextValue::PlaneMask(val) => client.write_val_u32(val),
@@ -1945,6 +2338,34 @@ impl Value for GraphicsContextValue {
             &GraphicsContextValue::DashOffset(val) => client.write_val_u16(val),
             &GraphicsContextValue::Dashes(val) => client.write_val_u8(val),
             &GraphicsContextValue::ArcMode(ref val) => client.write_val(val.val())
+        };
+    }
+}
+
+impl Value for KeyboardControlValue {
+    fn get_mask(&self) -> u32 {
+        match self {
+            &KeyboardControlValue::KeyClickPercent(_) => 0x0001,
+            &KeyboardControlValue::BellPercent(_) => 0x0002,
+            &KeyboardControlValue::BellPitch(_) =>  0x0004,
+            &KeyboardControlValue::BellDuration(_) => 0x0008,
+            &KeyboardControlValue::Led(_) =>  0x0010,
+            &KeyboardControlValue::LedMode(_) => 0x0020,
+            &KeyboardControlValue::Key(_) => 0x0040,
+            &KeyboardControlValue::AutoRepeatMode(_) => 0x0040
+        }
+    }
+
+    fn write(&self, client: &mut XClient) {
+        match self {
+            &KeyboardControlValue::KeyClickPercent(val) => client.write_u8(val),
+            &KeyboardControlValue::BellPercent(val) => client.write_u8(val),
+            &KeyboardControlValue::BellPitch(val) => client.write_i16(val),
+            &KeyboardControlValue::BellDuration(val) => client.write_i16(val),
+            &KeyboardControlValue::Led(val) => client.write_u8(val),
+            &KeyboardControlValue::LedMode(ref val) => client.write_u8(val.val()),
+            &KeyboardControlValue::Key(val) => client.write_char(val),
+            &KeyboardControlValue::AutoRepeatMode(ref val) => client.write_u8(val.val())
         };
     }
 }

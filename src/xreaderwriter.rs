@@ -15,6 +15,8 @@ pub trait XBufferedWriter {
     fn write_dynamic_len(&mut self, base: u16, len: usize) -> usize;
     fn write_bool(&mut self, input: bool);
     fn write_u8(&mut self, input: u8);
+    fn write_i8(&mut self, input: i8);
+    fn write_char(&mut self, input: char);
     fn write_i16(&mut self, input: i16);
     fn write_u16(&mut self, input: u16);
     fn write_i32(&mut self, input: i32);

@@ -1,0 +1,6 @@
+Methods are not fully documented yet. However, here are some standard names I am using:
+- wid: Window ID
+- gcid: Graphics Context ID
+- cmid: Colormap ID
+- cid: Cursor ID
+- vid: Visual ID
