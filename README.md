@@ -1,8 +1,11 @@
 # X Rust Bindings, aka XRB
 Pure Rust bindings for X11 protocol.
 
-# WIP NOTICE
-This is still a work in progress, and things may not work. Feel free to submit suggestions, issues, or any other types of feedback though!
+# READ ME
+This is still a work in progress.
+If you use this, please **let me know what you want done first** and **let me know what doesn't work**.
+Both can be done by submitting an issue.
+There is a lot of ground to cover so progress may seem a bit slow, but if there are a few methods you want bindings for, or you find some bugs, they will be put at the top of my list.
 
 # So what's done?
 - Connect with no auth
