@@ -6,7 +6,7 @@ This is still a work in progress, and things may not work. Feel free to submit s
 
 # So what's done?
 - Connect with no auth
-- 55/120 standard requests
+- All standard requests (not all have been tested)
 - Subscribe to events
 - Get events, errors, and two replies from the X Server
     - Temporarily ignore messages from the X Server until you get an error/reply with your sequence number (stores messages for later usage)
@@ -23,8 +23,6 @@ See tests/main.rs for some example usage.
     - Responds with replies, errors, and events
 
 # TODO
-    - All request types
-        - Continue at GrabPointer
     - Replies (Crl+F "▶")
         - NOTE: Even though I may "complete" all requests when done the above point, the replies may not be done. Check!
     - Map functions to objects (ie `window.destroy()` instead of `client.destroy_window(window.wid)`)
