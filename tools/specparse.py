@@ -9,7 +9,8 @@
 import argparse
 import re
 
-reg_main_line = r"^([a-zA-Z]+)$"
+reg_main_line = r"^([a-zA-Z0-9]+)$"
+reg_request_len = r"^     2\s+(\S+)\s+request length$"
 reg_standard = r"^     (\d+)\s+([\w\d]+)\s+(\S.*)$"
 reg_unused = r"^     (\d+)\s+unused$" # Must be matched before enumerable
 reg_data = r"^     (\d+)\s+data$" # Must be matched before enumerable
@@ -19,25 +20,49 @@ reg_enum = r"^          (\d+)\s+[#\w]+$"
 def read(path):
     pass # TODO: This
 
-def write(path):
+def write(path, is_event):
     with open(path, "r") as f:
         written = -1
+        pad = False
+        in_response = False
 
         for line in f:
             while line.endswith("\n"):
                 line = line[:-1]
 
             if not line:
-                print()
                 continue
             
             match = re.match(reg_main_line, line)
             if match:
-                if written != -1 and written != 32:
-                    print("Warning: Above statement (yes, past the empty line) did not add up to 32 bytes (was %d instead)" % written)
+                if pad:
+                    print("self.write_pad_op(pad);")
+                if is_event and written != -1 and written != 32:
+                    print("WARNING: Above statement did not add up to 32 bytes (was %d instead)" % written)
 
-                written = 0
+                print()
                 print(line)
+                written = 0
+                pad = False
+                in_response = False
+                continue
+            
+            if line.startswith("▶"):
+                in_response = True
+                continue
+
+            if in_response:
+                continue
+
+            match = re.match(reg_request_len, line)
+            if match:
+                try:
+                    l = int(match.group(1))
+                    print("self.write_u16(%d);" % l)
+                except:
+                    print("let pad = self.write_dynamic_len(TODO_BASE, TODO_EXTRA); // TODO: Fill this in from %s" % match.group(1))
+                    pad = True
+                written += 2
                 continue
             match = re.match(reg_standard, line)
             if match:
@@ -102,11 +127,12 @@ if __name__ == "__main__":
     )
     parser.add_argument("read|write", help="Is your action reading or writing?")
     parser.add_argument("path", help="Portion of the specification to parse")
+    parser.add_argument("--event", action="store_true", help="If set, will warn if section is not 32 bytes (required event length)")
     args = parser.parse_args().__dict__
 
     if args["read|write"].lower() == "read":
         read(args["path"])
     elif args["read|write"].lower() == "write":
-        write(args["path"])
+        write(args["path"], args["event"])
     else:
         print("Error: Argument 1 must be one of 'read' or 'write'")

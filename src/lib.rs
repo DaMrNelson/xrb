@@ -417,18 +417,6 @@ impl XClient {
 
 // Endpoints
 impl XClient { // This is actually a pretty nice feature for organization
-    // COPY+PASTE TEMPLATE (not required to follow this format, it just makes it easier to write)
-    /*
-    /** Tells the X Server to [TODO] */
-    pub fn (&mut self, ) -> u16 {
-    pub fn (&mut self, ) {
-        self.write_u8(protocol::OP_);
-
-        self.write_sequence(ServerReplyType::)
-        self.write_request();
-    }
-    */
-
     /** Tells the X Server to create a window */
     pub fn create_window(&mut self, window: &Window) {
         // Should be 28 not including values and their mask
@@ -1170,7 +1158,7 @@ impl XClient { // This is actually a pretty nice feature for organization
                 self.write_pad(1);
                 self.write_u16(seq);
                 self.write_u8(request.val());
-                self.write_u8(first_keycode as u8);
+                self.write_char(first_keycode);
                 self.write_u8(count);
                 self.write_pad(25);
             }
@@ -1309,7 +1297,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u16(4);
         self.write_u32(grab_window);
         self.write_mask_u16(modifiers.iter().map(|val| val.val()).collect());
-        self.write_u8(key as u8);
+        self.write_char(key);
         self.write_u8(pointer_mode.val());
         self.write_u8(keyboard_mode.val());
         self.write_pad(3);
@@ -1324,7 +1312,7 @@ impl XClient { // This is actually a pretty nice feature for organization
      */
     pub fn ungrab_key(&mut self, key: char, grab_window: u32, modifiers: Vec<Key>) {
         self.write_u8(protocol::OP_UNGRAB_KEY);
-        self.write_u8(key as u8);
+        self.write_char(key);
         self.write_u16(3);
         self.write_u32(grab_window);
         self.write_mask_u16(modifiers.iter().map(|val| val.val()).collect());
@@ -1585,20 +1573,862 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_request();
     }
 
-    /* I also put the template down here for now. Again, this template is not required, it is just useful.
     /** Tells the X Server to [TODO] */
-    pub fn (&mut self, ) -> u16 {
-    pub fn (&mut self, ) {
-        self.write_u8(protocol::OP_);
-        // TODO: Do this
+    pub fn set_dashes(&mut self, gcid: u32, offset: u16, dashes: Vec<u8>) {
+        self.write_u8(protocol::OP_SET_DASHES);
+        self.write_pad(1);
+        let pad = self.write_dynamic_len(3, dashes.len());
+        self.write_u32(gcid);
+        self.write_u16(offset);
+        self.write_u16(dashes.len() as u16);
+        for dash in &dashes {
+            self.write_u8(*dash);
+        }
+        self.write_pad_op(pad);
 
-        self.write_sequence(ServerReplyType::)
         self.write_request();
     }
-    */
 
-    // TODO: Continue at [see last one above]
-    // Don't forget about the template above (search "fn (")
+    /** Tells the X Server to [TODO] */
+    pub fn set_clip_rectangles(&mut self, gcid: u32, rectangles: Vec<Rectangle>, clip_x_origin: i16, clip_y_origin: i16, ordering: RectangleOrdering) {
+        self.write_u8(protocol::OP_SET_CLIP_RECTANGLES);
+        self.write_u8(ordering.val());
+        let pad = self.write_dynamic_len(3, rectangles.len() * 8);
+        self.write_u32(gcid);
+        self.write_i16(clip_x_origin);
+        self.write_i16(clip_y_origin);
+        for rect in &rectangles {
+            rect.write(self);
+        }
+        self.write_pad_op(pad);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn free_gc(&mut self, gcid: u32) {
+        self.write_u8(protocol::OP_FREE_GC);
+        self.write_pad(1);
+        self.write_u16(2);
+        self.write_u32(gcid);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn clear_area(&mut self, wid: u32, x: i16, y: i16, width: u16, height: u16, exposures: bool) {
+        self.write_u8(protocol::OP_CLEAR_AREA);
+        self.write_bool(exposures);
+        self.write_u16(4);
+        self.write_u32(wid);
+        self.write_i16(x);
+        self.write_i16(y);
+        self.write_u16(width);
+        self.write_u16(height);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn copy_plane(&mut self, src: u32, dst: u32, gcid: u32, src_x: i16, src_y: i16, dst_x: i16, dst_y: i16, width: u16, height: u16, bit_plane: u32) {
+        self.write_u8(protocol::OP_COPY_PLANE);
+        self.write_pad(1);
+        self.write_u16(8);
+        self.write_u32(src);
+        self.write_u32(dst);
+        self.write_u32(gcid);
+        self.write_i16(src_x);
+        self.write_i16(src_y);
+        self.write_i16(dst_x);
+        self.write_i16(dst_y);
+        self.write_u16(width);
+        self.write_u16(height);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn poly_point(&mut self, drawable: u32, gcid: u32, points: Vec<Point>, mode: CoordinateMode) {
+        self.write_u8(protocol::OP_POLY_POINT);
+        self.write_u8(mode.val());
+        let pad = self.write_dynamic_len(3, points.len() * 4);
+        self.write_u32(drawable);
+        self.write_u32(gcid);
+        for point in &points {
+            point.write(self);
+        }
+        self.write_pad(pad);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn poly_line(&mut self, drawable: u32, gcid: u32, points: Vec<Point>, mode: CoordinateMode) {
+        self.write_u8(protocol::OP_POLY_LINE);
+        self.write_u8(mode.val());
+        let pad = self.write_dynamic_len(3, points.len() * 4);
+        self.write_u32(drawable);
+        self.write_u32(gcid);
+        for point in &points {
+            point.write(self);
+        }
+        self.write_pad_op(pad);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn poly_segment(&mut self, drawable: u32, gcid: u32, segments: Vec<Segment>) {
+        self.write_u8(protocol::OP_POLY_SEGMENT);
+        self.write_pad(1);
+        let pad = self.write_dynamic_len(3, segments.len() * 8);
+        self.write_u32(drawable);
+        self.write_u32(gcid);
+        for segment in &segments {
+            segment.write(self);
+        }
+        self.write_pad_op(pad);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn poly_rectangle(&mut self, drawable: u32, gcid: u32, rectangles: Vec<Rectangle>) {
+        self.write_u8(protocol::OP_POLY_RECTANGLE);
+        self.write_pad(1);
+        let pad = self.write_dynamic_len(3, rectangles.len() * 8);
+        self.write_u32(drawable);
+        self.write_u32(gcid);
+        for rect in &rectangles {
+            rect.write(self);
+        }
+        self.write_pad_op(pad);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn poly_arc(&mut self, drawable: u32, gcid: u32, arcs: Vec<Arc>) {
+        self.write_u8(protocol::OP_POLY_ARC);
+        self.write_pad(1);
+        let pad = self.write_dynamic_len(3, arcs.len() * 12);
+        self.write_u32(drawable);
+        self.write_u32(gcid);
+        for arc in &arcs {
+            arc.write(self);
+        }
+        self.write_pad_op(pad);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn fill_poly(&mut self, drawable: u32, gcid: u32, points: Vec<Point>, shape: PolyShape, mode: CoordinateMode) {
+        self.write_u8(protocol::OP_FILL_POLY);
+        self.write_pad(1);
+        let pad = self.write_dynamic_len(4, points.len() * 4);
+        self.write_u32(drawable);
+        self.write_u32(gcid);
+        self.write_u8(shape.val());
+        self.write_u8(mode.val());
+        self.write_pad(2);
+        for point in &points {
+            point.write(self);
+        }
+        self.write_pad_op(pad);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn poly_fill_rectangle(&mut self, drawable: u32, gcid: u32, rectangles: Vec<Rectangle>) {
+        self.write_u8(protocol::OP_POLY_FILL_RECTANGLE);
+        self.write_pad(1);
+        let pad = self.write_dynamic_len(3, rectangles.len() * 8);
+        self.write_u32(drawable);
+        self.write_u32(gcid);
+        for rect in &rectangles {
+            rect.write(self);
+        }
+        self.write_pad_op(pad);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn poly_fill_arc(&mut self, drawable: u32, gcid: u32, arcs: Vec<Arc>) {
+        self.write_u8(protocol::OP_POLY_FILL_ARC);
+        self.write_pad(1);
+        let pad = self.write_dynamic_len(3, arcs.len() * 12);
+        self.write_u32(drawable);
+        self.write_u32(gcid);
+        for arc in &arcs {
+            arc.write(self);
+        }
+        self.write_pad_op(pad);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn put_image(&mut self, drawable: u32, gcid: u32, data: Vec<u8>, width: u16, height: u16, x: i16, y: i16, left_pad: u8, depth: u8, format: ImageFormat) {
+        self.write_u8(protocol::OP_PUT_IMAGE);
+        self.write_u8(format.val());
+        let pad = self.write_dynamic_len(6, data.len());
+        self.write_u32(drawable);
+        self.write_u32(gcid);
+        self.write_u16(width);
+        self.write_u16(height);
+        self.write_i16(x);
+        self.write_i16(y);
+        self.write_u8(left_pad);
+        self.write_u8(depth);
+        self.write_pad(2);
+        self.write_raw(&data);
+        self.write_pad_op(pad);
+
+        self.write_request();
+    }
+
+    /**
+     * Tells the X Server to [TODO]
+     * `format` may only be ImageFormat::XYPixmap or ImageFormat::ZPixmap
+     */
+    pub fn get_image(&mut self, drawable: u32, x: i16, y: i16, width: u16, height: u16, plane_mask: u32, format: ImageFormat) -> u16 {
+        self.write_u8(protocol::OP_GET_IMAGE);
+        self.write_u8(format.val());
+        self.write_u16(5);
+        self.write_u32(drawable);
+        self.write_i16(x);
+        self.write_i16(y);
+        self.write_u16(width);
+        self.write_u16(height);
+        self.write_u32(plane_mask);
+
+        self.write_sequence(ServerReplyType::GetImage)
+    }
+
+    /**
+     * Tells the X Server to [TODO]
+     * `texts` is TextItem8Text or TextItem8Font
+     * A TextItem8Text entry in `texts` must be 254 or less characters
+     */
+    pub fn poly_text_8<T: TextItem8>(&mut self, drawable: u32, gcid: u32, x: i16, y: i16, texts: Vec<T>) {
+        let mut len = 0;
+        for text in &texts {
+            len += text.len();
+        }
+
+        self.write_u8(protocol::OP_POLY_TEXT8);
+        self.write_pad(1);
+        let pad = self.write_dynamic_len(4, len);
+        self.write_u32(drawable);
+        self.write_u32(gcid);
+        self.write_i16(x);
+        self.write_i16(y);
+        for text in &texts {
+            text.write(self);
+        }
+        self.write_pad_op(pad);
+
+        self.write_request();
+    }
+
+    /**
+     * Tells the X Server to [TODO]
+     * `texts` is TextItem16Text or TextItem16Font
+     * A TextItem16Text entry in `texts` must be 254 or less characters
+     */
+    pub fn poly_text_16<T: TextItem16>(&mut self, drawable: u32, gcid: u32, x: i16, y: i16, texts: Vec<T>) {
+        let mut len = 0;
+        for text in &texts {
+            len += text.len();
+        }
+
+        self.write_u8(protocol::OP_POLY_TEXT16);
+        self.write_pad(1);
+        let pad = self.write_dynamic_len(4, len);
+        self.write_u32(drawable);
+        self.write_u32(gcid);
+        self.write_i16(x);
+        self.write_i16(y);
+        for text in &texts {
+            text.write(self);
+        }
+        self.write_pad_op(pad);
+
+        self.write_request();
+    }
+
+    /**
+     * Tells the X Server to [TODO] 
+     * `text` must be 255 or less characters
+     */
+    pub fn image_text_8(&mut self, drawable: u32, gcid: u32, text: &str, x: i16, y: i16) {
+        self.write_u8(protocol::OP_IMAGE_TEXT8);
+        self.write_u8(text.len() as u8);
+        let pad = self.write_dynamic_len(4, text.len());
+        self.write_u32(drawable);
+        self.write_u32(gcid);
+        self.write_i16(x);
+        self.write_i16(y);
+        self.write_str(text);
+        self.write_pad_op(pad);
+
+        self.write_request();
+    }
+
+    /**
+     * Tells the X Server to [TODO]
+     * `text` must have 255 or less elements
+     */
+    pub fn image_text_16(&mut self, drawable: u32, gcid: u32, text: &Vec<u16>, x: i16, y: i16) {
+        self.write_u8(protocol::OP_IMAGE_TEXT16);
+        self.write_u8(text.len() as u8);
+        let pad = self.write_dynamic_len(4, text.len() * 2);
+        self.write_u32(drawable);
+        self.write_u32(gcid);
+        self.write_i16(x);
+        self.write_i16(y);
+        self.write_pad_op(pad);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn create_colormap(&mut self, cmid: u32, wid: u32, vid: u32, mode: AllocMode) {
+        self.write_u8(protocol::OP_CREATE_COLORMAP);
+        self.write_u8(mode.val());
+        self.write_u16(4);
+        self.write_u32(cmid);
+        self.write_u32(wid);
+        self.write_u32(vid);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn free_colormap(&mut self, cmid: u32) {
+        self.write_u8(protocol::OP_FREE_COLORMAP);
+        self.write_pad(1);
+        self.write_u16(2);
+        self.write_u32(cmid);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn copy_colormap_and_free(&mut self, src_cmid: u32, dst_cmid: u32) {
+        self.write_u8(protocol::OP_COPY_COLORMAP_AND_FREE);
+        self.write_pad(1);
+        self.write_u16(3);
+        self.write_u32(dst_cmid);
+        self.write_u32(src_cmid);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn install_colormap(&mut self, cmid: u32) {
+        self.write_u8(protocol::OP_INSTALL_COLORMAP);
+        self.write_pad(1);
+        self.write_u16(2);
+        self.write_u32(cmid);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn uninstall_colormap(&mut self, cmid: u32) {
+        self.write_u8(protocol::OP_UNINSTALL_COLORMAP);
+        self.write_pad(1);
+        self.write_u16(2);
+        self.write_u32(cmid);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn list_installed_colormaps(&mut self, wid: u32) -> u16 {
+        self.write_u8(protocol::OP_LIST_INSTALLED_COLORMAPS);
+        self.write_pad(1);
+        self.write_u16(2);
+        self.write_u32(wid);
+
+        self.write_sequence(ServerReplyType::ListInstalledColormaps)
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn alloc_color(&mut self, cmid: u32, red: u16, green: u16, blue: u16) -> u16 {
+        self.write_u8(protocol::OP_ALLOC_COLOR);
+        self.write_pad(1);
+		self.write_u16(4);
+		self.write_u32(cmid);
+		self.write_u16(red);
+		self.write_u16(green);
+		self.write_u16(blue);
+		self.write_pad(2);
+
+        self.write_sequence(ServerReplyType::AllocColor)
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn alloc_named_color(&mut self, cmid: u32, name: &str) -> u16 {
+        self.write_u8(protocol::OP_ALLOC_NAMED_COLOR);
+        self.write_pad(1);
+		let pad = self.write_dynamic_len(3, name.len());
+		self.write_u32(cmid);
+		self.write_u16(name.len() as u16);
+		self.write_pad(2);
+        self.write_str(name);
+		self.write_pad_op(pad);
+
+        self.write_sequence(ServerReplyType::AllocNamedColor)
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn alloc_color_cells(&mut self, cmid: u32, colors: u16, planes: u16, contiguous: bool) -> u16 {
+        self.write_u8(protocol::OP_ALLOC_COLOR_CELLS);
+        self.write_bool(contiguous);
+		self.write_u16(3);
+		self.write_u32(cmid);
+		self.write_u16(colors);
+		self.write_u16(planes);
+
+        self.write_sequence(ServerReplyType::AllocColorCells)
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn alloc_color_planes(&mut self, cmid: u32, colors: u16, reds: u16, greens: u16, blues: u16, contiguous: bool) -> u16 {
+        self.write_u8(protocol::OP_ALLOC_COLOR_PLANES);
+        self.write_bool(contiguous);
+		self.write_u16(4);
+		self.write_u32(cmid);
+		self.write_u16(colors);
+		self.write_u16(reds);
+		self.write_u16(greens);
+		self.write_u16(blues);
+
+        self.write_sequence(ServerReplyType::AllocColorPlanes)
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn free_colors(&mut self, cmid: u32, plane_mask: u32, pixels: Vec<u32>) {
+        self.write_u8(protocol::OP_FREE_COLORS);
+        self.write_pad(1);
+		let pad = self.write_dynamic_len(3, pixels.len() * 4);
+		self.write_u32(cmid);
+		self.write_u32(plane_mask);
+        for pixel in &pixels {
+            self.write_u32(*pixel);
+        }
+		self.write_pad_op(pad);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn store_colors(&mut self, cmid: u32, items: Vec<ColorItem>) {
+        self.write_u8(protocol::OP_STORE_COLORS);
+        self.write_pad(1);
+		let pad = self.write_dynamic_len(2, items.len() * 12);
+		self.write_u32(cmid);
+        for item in &items {
+            item.write(self);
+        }
+		self.write_pad_op(pad);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn store_named_color(&mut self, cmid: u32, name: &str, pixel: u32, do_red: bool, do_green: bool, do_blue: bool) {
+        let mut mask = 0x00;
+        if do_red {
+            mask |= 0x01;
+        }
+        if do_green {
+            mask |= 0x02;
+        }
+        if do_blue {
+            mask |= 0x04;
+        }
+
+        self.write_u8(protocol::OP_STORE_NAMED_COLOR);
+        self.write_u8(mask);
+		let pad = self.write_dynamic_len(4, name.len());
+		self.write_u32(cmid);
+		self.write_u32(pixel);
+		self.write_u16(name.len() as u16);
+		self.write_pad(2);
+        self.write_str(name);
+		self.write_pad_op(pad);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn query_colors(&mut self, cmid: u32, pixels: Vec<u32>) -> u16 {
+        self.write_u8(protocol::OP_QUERY_COLORS);
+        self.write_pad(1);
+		let pad = self.write_dynamic_len(2, pixels.len() * 4);
+		self.write_u32(cmid);
+        for pixel in &pixels {
+            self.write_u32(*pixel);
+        }
+		self.write_pad_op(pad);
+
+        self.write_sequence(ServerReplyType::QueryColors)
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn lookup_color(&mut self, cmid: u32, name: &str) -> u16 {
+        self.write_u8(protocol::OP_LOOKUP_COLOR);
+        self.write_pad(1);
+		let pad = self.write_dynamic_len(3, name.len());
+		self.write_u32(cmid);
+		self.write_u16(name.len() as u16);
+		self.write_pad(2);
+        self.write_str(name);
+		self.write_pad_op(pad);
+
+        self.write_sequence(ServerReplyType::LookupColor)
+    }
+
+    /**
+     * Tells the X Server to [TODO]
+     * `mask` = 0 = none
+     */
+    pub fn create_cursor(&mut self, cid: u32, source: u32, mask: u32, fore_red: u16, fore_green: u16, fore_blue: u16, back_red: u16, back_green: u16, back_blue: u16, x: u16, y: u16) {
+        self.write_u8(protocol::OP_CREATE_CURSOR);
+        self.write_pad(1);
+		self.write_u16(8);
+		self.write_u32(cid);
+		self.write_u32(source);
+		self.write_u32(mask);
+		self.write_u16(fore_red);
+		self.write_u16(fore_green);
+		self.write_u16(fore_blue);
+		self.write_u16(back_red);
+		self.write_u16(back_green);
+		self.write_u16(back_blue);
+		self.write_u16(x);
+		self.write_u16(y);
+
+        self.write_request();
+    }
+
+    /**
+     * Tells the X Server to [TODO]
+     * `mask_font` = 0 = none
+     */
+    pub fn create_glyph_cursor(&mut self, cid: u32, source_font: u32, mask_font: u32, source_char: u16, mask_char: u16, fore_red: u16, fore_green: u16, fore_blue: u16, back_red: u16, back_green: u16, back_blue: u16) {
+        self.write_u8(protocol::OP_CREATE_GLYPH_CURSOR);
+        self.write_pad(1);
+		self.write_u16(8);
+		self.write_u32(cid);
+		self.write_u32(source_font);
+		self.write_u32(mask_font);
+		self.write_u16(source_char);
+		self.write_u16(mask_char);
+		self.write_u16(fore_red);
+		self.write_u16(fore_green);
+		self.write_u16(fore_blue);
+		self.write_u16(back_red);
+		self.write_u16(back_green);
+		self.write_u16(back_blue);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn free_cursor(&mut self, cid: u32) {
+        self.write_u8(protocol::OP_FREE_CURSOR);
+        self.write_pad(1);
+		self.write_u16(2);
+		self.write_u32(cid);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn recolor_cursor(&mut self, cid: u32, fore_red: u16, fore_green: u16, fore_blue: u16, back_red: u16, back_green: u16, back_blue: u16) {
+        self.write_u8(protocol::OP_RECOLOR_CURSOR);
+        self.write_pad(1);
+		self.write_u16(5);
+		self.write_u32(cid);
+		self.write_u16(fore_red);
+		self.write_u16(fore_green);
+		self.write_u16(fore_blue);
+		self.write_u16(back_red);
+		self.write_u16(back_green);
+		self.write_u16(back_blue);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn query_best_size(&mut self, drawable: u32, class: SizeClass, width: u16, height: u16) -> u16 {
+        self.write_u8(protocol::OP_QUERY_BEST_SIZE);
+        self.write_u8(class.val());
+		self.write_u16(3);
+		self.write_u32(drawable);
+		self.write_u16(width);
+		self.write_u16(height);
+
+        self.write_sequence(ServerReplyType::QueryBestSize)
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn query_extension(&mut self, name: &str) -> u16 {
+        self.write_u8(protocol::OP_QUERY_EXTENSION);
+        self.write_pad(1);
+		let pad = self.write_dynamic_len(2, name.len());
+		self.write_u16(name.len() as u16);
+		self.write_pad(2);
+        self.write_str(name);
+		self.write_pad_op(pad);
+
+        self.write_sequence(ServerReplyType::QueryExtension)
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn list_extensions(&mut self) -> u16 {
+        self.write_u8(protocol::OP_LIST_EXTENSIONS);
+        self.write_pad(1);
+		self.write_u16(1);
+
+        self.write_sequence(ServerReplyType::ListExtensions)
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn change_keyboard_mapping(&mut self, first: char, keysyms: Vec<u32>) {
+        self.write_u8(protocol::OP_CHANGE_KEYBOARD_MAPPING);
+        panic!("Not implemented yet");
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn get_keyboard_mapping(&mut self, first: char, count: u8) -> u16 {
+        self.write_u8(protocol::OP_GET_KEYBOARD_MAPPING);
+        self.write_pad(1);
+		self.write_u16(2);
+		self.write_char(first);
+		self.write_u8(count);
+		self.write_pad(2);
+
+        self.write_sequence(ServerReplyType::GetKeyboardMapping)
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn change_keyboard_control(&mut self, values: Vec<KeyboardControlValue>) {
+        self.write_u8(protocol::OP_CHANGE_KEYBOARD_CONTROL);
+        self.write_pad(1);
+		let pad = self.write_dynamic_len(2, values.len() * 4);
+		self.write_values(&values);
+		self.write_pad_op(pad);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn get_keyboard_control(&mut self) -> u16 {
+        self.write_u8(protocol::OP_GET_KEYBOARD_CONTROL);
+        self.write_pad(1);
+		self.write_u16(1);
+
+        self.write_sequence(ServerReplyType::GetKeyboardControl)
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn bell(&mut self, percent: i8) {
+        self.write_u8(protocol::OP_BELL);
+        self.write_i8(percent);
+		self.write_u16(1);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn change_pointer_control(&mut self, acceleration_numerator: i16, acceleration_denominator: i16, threshold: i16, do_acceleration: bool, do_threshold: bool) {
+        self.write_u8(protocol::OP_CHANGE_POINTER_CONTROL);
+        self.write_pad(1);
+		self.write_u16(3);
+		self.write_i16(acceleration_numerator);
+		self.write_i16(acceleration_denominator);
+		self.write_i16(threshold);
+		self.write_bool(do_acceleration);
+		self.write_bool(do_threshold);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn get_pointer_control(&mut self) -> u16 {
+        self.write_u8(protocol::OP_GET_POINTER_CONTROL);
+        self.write_pad(1);
+		self.write_u16(1);
+
+        self.write_sequence(ServerReplyType::GetPointerControl)
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn set_screen_saver(&mut self, timeout: i16, interval: i16, prefer_blanking: YesNoDefault, allow_exposures: YesNoDefault) {
+        self.write_u8(protocol::OP_SET_SCREEN_SAVER);
+        self.write_pad(1);
+		self.write_u16(3);
+		self.write_i16(timeout);
+		self.write_i16(interval);
+		self.write_u8(prefer_blanking.val());
+		self.write_u8(allow_exposures.val());
+		self.write_pad(2);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn get_screen_saver(&mut self) -> u16 {
+        self.write_u8(protocol::OP_GET_SCREEN_SAVER);
+        self.write_pad(1);
+		self.write_u16(1);
+
+        self.write_sequence(ServerReplyType::GetScreenSaver)
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn change_hosts(&mut self, address: &Vec<u8>, family: HostFamily, mode: ChangeHostMode) {
+        self.write_u8(protocol::OP_CHANGE_HOSTS);
+        self.write_u8(mode.val());
+		let pad = self.write_dynamic_len(2, address.len());
+		self.write_u8(family.val());
+		self.write_pad(1);
+		self.write_u16(address.len() as u16);
+        self.write_raw(address);
+		self.write_pad_op(pad);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn list_hosts(&mut self) -> u16 {
+        self.write_u8(protocol::OP_LIST_HOSTS);
+        self.write_pad(1);
+		self.write_u16(1);
+
+        self.write_sequence(ServerReplyType::ListHosts)
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn set_access_control(&mut self, mode: bool) {
+        self.write_u8(protocol::OP_SET_ACCESS_CONTROL);
+        self.write_u8(if mode { 1 } else { 0 });
+		self.write_u16(1);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn set_close_down_mode(&mut self, mode: CloseDownMode) {
+        self.write_u8(protocol::OP_SET_CLOSE_DOWN_MODE);
+        self.write_u8(mode.val());
+		self.write_u16(1);
+
+        self.write_request();
+    }
+
+    /**
+     * Tells the X Server to [TODO]
+     * `resource` = 0 = all temporary
+     */
+    pub fn kill_client(&mut self, resource: u32) {
+        self.write_u8(protocol::OP_KILL_CLIENT);
+        self.write_pad(1);
+		self.write_u16(2);
+		self.write_u32(resource);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn rotate_properties(&mut self, wid: u32, properties: Vec<u32>, delta: i16) {
+        self.write_u8(protocol::OP_ROTATE_PROPERTIES);
+        self.write_pad(1);
+		let pad = self.write_dynamic_len(3, properties.len() * 4);
+		self.write_u32(wid);
+		self.write_u16(properties.len() as u16);
+		self.write_i16(delta);
+        for prop in &properties {
+            self.write_u32(*prop);
+        }
+		self.write_pad_op(pad);
+
+        self.write_request();
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn force_screen_saver(&mut self, reset: bool) {
+        self.write_u8(protocol::OP_FORCE_SCREEN_SAVER);
+        self.write_u8(if reset { 0 } else { 1 });
+		self.write_u16(1);
+
+        self.write_request();
+    }
+
+    /**
+     * Tells the X Server to [TODO]
+     * `map` must be 255 or less elements
+     */
+    pub fn set_pointer_mapping(&mut self, map: Vec<u8>) -> u16 {
+        self.write_u8(protocol::OP_SET_POINTER_MAPPING);
+        self.write_u8(map.len() as u8);
+		let pad = self.write_dynamic_len(1, map.len());
+        self.write_raw(&map);
+		self.write_pad_op(pad);
+
+        self.write_sequence(ServerReplyType::SetPointerMapping)
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn get_pointer_mapping(&mut self) -> u16 {
+        self.write_u8(protocol::OP_GET_POINTER_MAPPING);
+        self.write_pad(1);
+		self.write_u16(1);
+
+        self.write_sequence(ServerReplyType::GetPointerMapping)
+    }
+
+    /**
+     * Tells the X Server to [TODO]
+     * `keycodes` must have 255 or less elements
+     */
+    pub fn set_modifier_mapping(&mut self, keycodes: Vec<char>) -> u16 {
+        self.write_u8(protocol::OP_SET_MODIFIER_MAPPING);
+        self.write_u8(keycodes.len() as u8);
+		let pad = self.write_dynamic_len(1, keycodes.len() * 8);
+		self.write_pad_op(pad);
+
+        self.write_sequence(ServerReplyType::SetModifierMapping)
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn get_modifier_mapping(&mut self) -> u16 {
+        self.write_u8(protocol::OP_GET_MODIFIER_MAPPING);
+        self.write_pad(1);
+		self.write_u16(1);
+
+        self.write_sequence(ServerReplyType::GetModifierMapping)
+    }
+
+    /** Tells the X Server to [TODO] */
+    pub fn no_operation(&mut self, len: usize) {
+        self.write_u8(protocol::OP_NO_OPERATION);
+        self.write_pad(1);
+		let pad = self.write_dynamic_len(1, len * 4);
+        self.write_pad_op(len + pad);
+
+        self.write_request();
+    }
 }
 
 impl XBufferedWriter for XClient {
@@ -1650,6 +2480,7 @@ impl XBufferedWriter for XClient {
     
     /**
      * Writes a u16 defining the length specifier for a request, and returns the padding that would be required if there is one variable (in bytes).
+     * base and len are both the number of bytes. So if you have x entries 8 bytes long, give len=x*8
      */
     fn write_dynamic_len(&mut self, base: u16, len: usize) -> usize {
         if len % 4 == 0 {
@@ -1678,6 +2509,20 @@ impl XBufferedWriter for XClient {
     fn write_u8(&mut self, input: u8) {
         self.buf_one_byte[0] = input;
         self.buf_out.write_all(&self.buf_one_byte).unwrap();
+    }
+
+    /**
+     * Writes an i8 to the buffer.
+     */
+    fn write_i8(&mut self, input: i8) {
+        self.write_u8(input as u8);
+    }
+
+    /**
+     * Writes a char to the buffer.
+     */
+    fn write_char(&mut self, input: char) {
+        self.write_u8(input as u8);
     }
 
     /**

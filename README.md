@@ -33,6 +33,7 @@ See tests/main.rs for some example usage.
     - Some skipped stuff
         - read_keymap_notify
         - set_font_path
+        - change_keyboard_mapping
     - Multithread usage?
         - Thread lock when creating new resource IDs. Or maybe just thread lock the entire thing? Idk yet.
     - Allow re-use of used resource IDs
