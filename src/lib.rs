@@ -523,7 +523,7 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 
     /** Tells the X Server to change a window's save set */
-    pub fn change_save_set(&mut self, wid: u32, mode: SaveSetMode) {
+    pub fn change_save_set(&mut self, wid: u32, mode: &SaveSetMode) {
         self.write_u8(protocol::OP_CHANGE_SAVE_SET);
         self.write_u8(mode.val());
         self.write_u16(2);
@@ -586,7 +586,7 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 
     /** Tells the X Server to configure a window */
-    pub fn configure_window(&mut self, wid: u32, values: Vec<WindowValue>) {
+    pub fn configure_window(&mut self, wid: u32, values: &Vec<WindowValue>) {
         self.write_u8(protocol::OP_CONFIGURE_WINDOW);
         self.write_pad(1);
         self.write_u16(3 + values.len() as u16);
@@ -597,7 +597,7 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 
     /** Tells the X Server to [TODO] */
-    pub fn circulate_window(&mut self, wid: u32, direction: CirculateDirection) {
+    pub fn circulate_window(&mut self, wid: u32, direction: &CirculateDirection) {
         self.write_u8(protocol::OP_UNMAP_SUBWINDOWS);
         self.write_u8(direction.val());
         self.write_u16(2);
@@ -650,7 +650,7 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 
     /** Tells the X Server to [TODO] */
-    pub fn change_property(&mut self, wid: u32, property: u32, ptype: u32, mode: PropertyChangeMode, data: &[u8]) {
+    pub fn change_property(&mut self, wid: u32, property: u32, ptype: u32, mode: &PropertyChangeMode, data: &[u8]) {
         let len = data.len();
         let format =
             if len % 4 == 0 {
@@ -769,7 +769,7 @@ impl XClient { // This is actually a pretty nice feature for organization
      * `destination` = 0 = PointerWindow
      * `destination` = 1 = InputFocus
      */
-    pub fn send_event(&mut self, event: ServerEvent, propagate: bool, destination: u32, events: Vec<Event>) {
+    pub fn send_event(&mut self, event: &ServerEvent, propagate: bool, destination: u32, events: &Vec<Event>) {
         self.write_u8(protocol::OP_SEND_EVENT);
         self.write_bool(propagate);
         self.write_u16(11);
@@ -781,16 +781,16 @@ impl XClient { // This is actually a pretty nice feature for organization
         match event {
             ServerEvent::KeyPress { key_code, time, root, event, child, root_x, root_y, event_x, event_y, state, same_screen } => {
                 self.write_u8(protocol::REPLY_KEY_PRESS);
-                self.write_u8(key_code);
+                self.write_u8(*key_code);
                 self.write_u16(seq);
-                self.write_u32(time);
-                self.write_u32(root);
-                self.write_u32(event);
-                self.write_u32(child);
-                self.write_i16(root_x);
-                self.write_i16(root_y);
-                self.write_i16(event_x);
-                self.write_i16(event_y);
+                self.write_u32(*time);
+                self.write_u32(*root);
+                self.write_u32(*event);
+                self.write_u32(*child);
+                self.write_i16(*root_x);
+                self.write_i16(*root_y);
+                self.write_i16(*event_x);
+                self.write_i16(*event_y);
                 self.write_u16({
                     let mut mask = 0;
                     for val in state.iter() {
@@ -798,21 +798,21 @@ impl XClient { // This is actually a pretty nice feature for organization
                     }
                     mask
                 });
-                self.write_bool(same_screen);
+                self.write_bool(*same_screen);
                 self.write_pad(1);
             },
             ServerEvent::KeyRelease { key_code, time, root, event, child, root_x, root_y, event_x, event_y, state, same_screen } => {
                 self.write_u8(protocol::REPLY_KEY_RELEASE);
-                self.write_u8(key_code);
+                self.write_u8(*key_code);
                 self.write_u16(seq);
-                self.write_u32(time);
-                self.write_u32(root);
-                self.write_u32(event);
-                self.write_u32(child);
-                self.write_i16(root_x);
-                self.write_i16(root_y);
-                self.write_i16(event_x);
-                self.write_i16(event_y);
+                self.write_u32(*time);
+                self.write_u32(*root);
+                self.write_u32(*event);
+                self.write_u32(*child);
+                self.write_i16(*root_x);
+                self.write_i16(*root_y);
+                self.write_i16(*event_x);
+                self.write_i16(*event_y);
                 self.write_u16({
                     let mut mask = 0;
                     for val in state.iter() {
@@ -820,21 +820,21 @@ impl XClient { // This is actually a pretty nice feature for organization
                     }
                     mask
                 });
-                self.write_bool(same_screen);
+                self.write_bool(*same_screen);
                 self.write_pad(1);
             },
             ServerEvent::ButtonPress { button, time, root, event, child, root_x, root_y, event_x, event_y, state, same_screen } => {
                 self.write_u8(protocol::REPLY_BUTTON_PRESS);
-                self.write_u8(button);
+                self.write_u8(*button);
                 self.write_u16(seq);
-                self.write_u32(time);
-                self.write_u32(root);
-                self.write_u32(event);
-                self.write_u32(child);
-                self.write_i16(root_x);
-                self.write_i16(root_y);
-                self.write_i16(event_x);
-                self.write_i16(event_y);
+                self.write_u32(*time);
+                self.write_u32(*root);
+                self.write_u32(*event);
+                self.write_u32(*child);
+                self.write_i16(*root_x);
+                self.write_i16(*root_y);
+                self.write_i16(*event_x);
+                self.write_i16(*event_y);
                 self.write_u16({
                     let mut mask = 0;
                     for val in state.iter() {
@@ -842,21 +842,21 @@ impl XClient { // This is actually a pretty nice feature for organization
                     }
                     mask
                 });
-                self.write_bool(same_screen);
+                self.write_bool(*same_screen);
                 self.write_pad(1);
             },
             ServerEvent::ButtonRelease { button, time, root, event, child, root_x, root_y, event_x, event_y, state, same_screen } => {
                 self.write_u8(protocol::REPLY_BUTTON_RELEASE);
-                self.write_u8(button);
+                self.write_u8(*button);
                 self.write_u16(seq);
-                self.write_u32(time);
-                self.write_u32(root);
-                self.write_u32(event);
-                self.write_u32(child);
-                self.write_i16(root_x);
-                self.write_i16(root_y);
-                self.write_i16(event_x);
-                self.write_i16(event_y);
+                self.write_u32(*time);
+                self.write_u32(*root);
+                self.write_u32(*event);
+                self.write_u32(*child);
+                self.write_i16(*root_x);
+                self.write_i16(*root_y);
+                self.write_i16(*event_x);
+                self.write_i16(*event_y);
                 self.write_u16({
                     let mut mask = 0;
                     for val in state.iter() {
@@ -864,21 +864,21 @@ impl XClient { // This is actually a pretty nice feature for organization
                     }
                     mask
                 });
-                self.write_bool(same_screen);
+                self.write_bool(*same_screen);
                 self.write_pad(1);
             },
             ServerEvent::MotionNotify { detail, time, root, event, child, root_x, root_y, event_x, event_y, state, same_screen } => {
                 self.write_u8(protocol::REPLY_MOTION_NOTIFY);
                 self.write_u8(detail.val());
                 self.write_u16(seq);
-                self.write_u32(time);
-                self.write_u32(root);
-                self.write_u32(event);
-                self.write_u32(child);
-                self.write_i16(root_x);
-                self.write_i16(root_y);
-                self.write_i16(event_x);
-                self.write_i16(event_y);
+                self.write_u32(*time);
+                self.write_u32(*root);
+                self.write_u32(*event);
+                self.write_u32(*child);
+                self.write_i16(*root_x);
+                self.write_i16(*root_y);
+                self.write_i16(*event_x);
+                self.write_i16(*event_y);
                 self.write_u16({
                     let mut mask = 0;
                     for val in state.iter() {
@@ -886,29 +886,29 @@ impl XClient { // This is actually a pretty nice feature for organization
                     }
                     mask
                 });
-                self.write_bool(same_screen);
+                self.write_bool(*same_screen);
                 self.write_pad(1);
             },
             ServerEvent::EnterNotify { detail, time, root, event, child, root_x, root_y, event_x, event_y, state, mode, same_screen, focus } => {
                 self.write_u8(protocol::REPLY_ENTER_NOTIFY);
                 self.write_u8(detail.val());
                 self.write_u16(seq);
-                self.write_u32(time);
-                self.write_u32(root);
-                self.write_u32(event);
-                self.write_u32(child);
-                self.write_i16(root_x);
-                self.write_i16(root_y);
-                self.write_i16(event_x);
-                self.write_i16(event_y);
+                self.write_u32(*time);
+                self.write_u32(*root);
+                self.write_u32(*event);
+                self.write_u32(*child);
+                self.write_i16(*root_x);
+                self.write_i16(*root_y);
+                self.write_i16(*event_x);
+                self.write_i16(*event_y);
                 self.write_mask_u16(state.iter().map(|val| val.val()).collect());
                 self.write_u8(mode.val());
                 self.write_u8(
-                    if same_screen && focus {
+                    if *same_screen && *focus {
                         0x01 | 0x02
-                    } else if same_screen {
+                    } else if *same_screen {
                         0x02
-                    } else if focus {
+                    } else if *focus {
                         0x01
                     } else {
                         0xFC
@@ -919,22 +919,22 @@ impl XClient { // This is actually a pretty nice feature for organization
                 self.write_u8(protocol::REPLY_LEAVE_NOTIFY);
                 self.write_u8(detail.val());
                 self.write_u16(seq);
-                self.write_u32(time);
-                self.write_u32(root);
-                self.write_u32(event);
-                self.write_u32(child);
-                self.write_i16(root_x);
-                self.write_i16(root_y);
-                self.write_i16(event_x);
-                self.write_i16(event_y);
+                self.write_u32(*time);
+                self.write_u32(*root);
+                self.write_u32(*event);
+                self.write_u32(*child);
+                self.write_i16(*root_x);
+                self.write_i16(*root_y);
+                self.write_i16(*event_x);
+                self.write_i16(*event_y);
                 self.write_mask_u16(state.iter().map(|val| val.val()).collect());
                 self.write_u8(mode.val());
                 self.write_u8(
-                    if same_screen && focus {
+                    if *same_screen && *focus {
                         0x01 | 0x02
-                    } else if same_screen {
+                    } else if *same_screen {
                         0x02
-                    } else if focus {
+                    } else if *focus {
                         0x01
                     } else {
                         0xFC
@@ -945,7 +945,7 @@ impl XClient { // This is actually a pretty nice feature for organization
                 self.write_u8(protocol::REPLY_FOCUS_IN);
                 self.write_u8(detail.val());
                 self.write_u16(seq);
-                self.write_u32(event);
+                self.write_u32(*event);
                 self.write_u8(mode.val());
                 self.write_pad(23);
             },
@@ -953,7 +953,7 @@ impl XClient { // This is actually a pretty nice feature for organization
                 self.write_u8(protocol::REPLY_FOCUS_OUT);
                 self.write_u8(detail.val());
                 self.write_u16(seq);
-                self.write_u32(event);
+                self.write_u32(*event);
                 self.write_u8(mode.val());
                 self.write_pad(23);
             },
@@ -964,42 +964,42 @@ impl XClient { // This is actually a pretty nice feature for organization
                 self.write_u8(protocol::REPLY_EXPOSE);
                 self.write_pad(1);
                 self.write_u16(seq);
-                self.write_u32(window);
-                self.write_u16(x);
-                self.write_u16(y);
-                self.write_u16(width);
-                self.write_u16(height);
-                self.write_u16(count);
+                self.write_u32(*window);
+                self.write_u16(*x);
+                self.write_u16(*y);
+                self.write_u16(*width);
+                self.write_u16(*height);
+                self.write_u16(*count);
                 self.write_pad(14);
             },
             ServerEvent::GraphicsExposure { drawable, x, y, width, height, minor_opcode, count, major_opcode } => {
                 self.write_u8(protocol::REPLY_GRAPHICS_EXPOSURE);
                 self.write_pad(1);
                 self.write_u16(seq);
-                self.write_u32(drawable);
-                self.write_u16(x);
-                self.write_u16(y);
-                self.write_u16(width);
-                self.write_u16(height);
-                self.write_u16(minor_opcode);
-                self.write_u16(count);
-                self.write_u8(major_opcode);
+                self.write_u32(*drawable);
+                self.write_u16(*x);
+                self.write_u16(*y);
+                self.write_u16(*width);
+                self.write_u16(*height);
+                self.write_u16(*minor_opcode);
+                self.write_u16(*count);
+                self.write_u8(*major_opcode);
                 self.write_pad(11);
             },
             ServerEvent::NoExposure { drawable, minor_opcode, major_opcode } => {
                 self.write_u8(protocol::REPLY_NO_EXPOSURE);
                 self.write_pad(1);
                 self.write_u16(seq);
-                self.write_u32(drawable);
-                self.write_u16(minor_opcode);
-                self.write_u8(major_opcode);
+                self.write_u32(*drawable);
+                self.write_u16(*minor_opcode);
+                self.write_u8(*major_opcode);
                 self.write_pad(21);
             },
             ServerEvent::VisibilityNotify { window, state } => {
                 self.write_u8(protocol::REPLY_VISIBILITY_NOTIFY);
                 self.write_pad(1);
                 self.write_u16(seq);
-                self.write_u32(window);
+                self.write_u32(*window);
                 self.write_u8(state.val());
                 self.write_pad(23);
             },
@@ -1007,89 +1007,89 @@ impl XClient { // This is actually a pretty nice feature for organization
                 self.write_u8(protocol::REPLY_CREATE_NOTIFY);
                 self.write_pad(1);
                 self.write_u16(seq);
-                self.write_u32(parent);
-                self.write_u32(window);
-                self.write_i16(x);
-                self.write_i16(y);
-                self.write_u16(width);
-                self.write_u16(height);
-                self.write_u16(border_width);
-                self.write_bool(override_redirect);
+                self.write_u32(*parent);
+                self.write_u32(*window);
+                self.write_i16(*x);
+                self.write_i16(*y);
+                self.write_u16(*width);
+                self.write_u16(*height);
+                self.write_u16(*border_width);
+                self.write_bool(*override_redirect);
                 self.write_pad(9);
             },
             ServerEvent::DestroyNotify { event, window } => {
                 self.write_u8(protocol::REPLY_DESTROY_NOTIFY);
                 self.write_pad(1);
                 self.write_u16(seq);
-                self.write_u32(event);
-                self.write_u32(window);
+                self.write_u32(*event);
+                self.write_u32(*window);
                 self.write_pad(20);
             },
             ServerEvent::UnmapNotify { event, window, from_configure } => {
                 self.write_u8(protocol::REPLY_UNMAP_NOTIFY);
                 self.write_pad(1);
                 self.write_u16(seq);
-                self.write_u32(event);
-                self.write_u32(window);
-                self.write_bool(from_configure);
+                self.write_u32(*event);
+                self.write_u32(*window);
+                self.write_bool(*from_configure);
                 self.write_pad(19);
             },
             ServerEvent::MapNotify { event, window, override_redirect } => {
                 self.write_u8(protocol::REPLY_MAP_NOTIFY);
                 self.write_pad(1);
                 self.write_u16(seq);
-                self.write_u32(event);
-                self.write_u32(window);
-                self.write_bool(override_redirect);
+                self.write_u32(*event);
+                self.write_u32(*window);
+                self.write_bool(*override_redirect);
                 self.write_pad(19);
             },
             ServerEvent::MapRequest { parent, window } => {
                 self.write_u8(protocol::REPLY_MAP_REQUEST);
                 self.write_pad(1);
                 self.write_u16(seq);
-                self.write_u32(parent);
-                self.write_u32(window);
+                self.write_u32(*parent);
+                self.write_u32(*window);
                 self.write_pad(20);
             },
             ServerEvent::ReparentNotify { event, window, parent, x, y, override_redirect } => {
                 self.write_u8(protocol::REPLY_REPARENT_NOTIFY);
                 self.write_pad(1);
                 self.write_u16(seq);
-                self.write_u32(event);
-                self.write_u32(window);
-                self.write_u32(parent);
-                self.write_i16(x);
-                self.write_i16(y);
-                self.write_bool(override_redirect);
+                self.write_u32(*event);
+                self.write_u32(*window);
+                self.write_u32(*parent);
+                self.write_i16(*x);
+                self.write_i16(*y);
+                self.write_bool(*override_redirect);
                 self.write_pad(11);
             },
             ServerEvent::ConfigureNotify { event, window, above_sibling, x, y, width, height, border_width, override_redirect } => {
                 self.write_u8(protocol::REPLY_CONFIGURE_NOTIFY);
                 self.write_pad(1);
                 self.write_u16(seq);
-                self.write_u32(event);
-                self.write_u32(window);
-                self.write_u32(above_sibling);
-                self.write_i16(x);
-                self.write_i16(y);
-                self.write_u16(width);
-                self.write_u16(height);
-                self.write_u16(border_width);
-                self.write_bool(override_redirect);
+                self.write_u32(*event);
+                self.write_u32(*window);
+                self.write_u32(*above_sibling);
+                self.write_i16(*x);
+                self.write_i16(*y);
+                self.write_u16(*width);
+                self.write_u16(*height);
+                self.write_u16(*border_width);
+                self.write_bool(*override_redirect);
                 self.write_pad(5);
             },
             ServerEvent::ConfigureRequest { stack_mode, parent, window, sibling, x, y, width, height, border_width, values } => {
                 self.write_u8(protocol::REPLY_CONFIGURE_REQUEST);
                 self.write_u8(stack_mode.val());
                 self.write_u16(seq);
-                self.write_u32(parent);
-                self.write_u32(window);
-                self.write_u32(sibling);
-                self.write_i16(x);
-                self.write_i16(y);
-                self.write_u16(width);
-                self.write_u16(height);
-                self.write_u16(border_width);
+                self.write_u32(*parent);
+                self.write_u32(*window);
+                self.write_u32(*sibling);
+                self.write_i16(*x);
+                self.write_i16(*y);
+                self.write_u16(*width);
+                self.write_u16(*height);
+                self.write_u16(*border_width);
                 self.write_mask_u16(values.iter().map(|val| val.val()).collect());
                 self.write_pad(4);
             },
@@ -1097,27 +1097,27 @@ impl XClient { // This is actually a pretty nice feature for organization
                 self.write_u8(protocol::REPLY_GRAVITY_NOTIFY);
                 self.write_pad(1);
                 self.write_u16(seq);
-                self.write_u32(event);
-                self.write_u32(window);
-                self.write_i16(x);
-                self.write_i16(y);
+                self.write_u32(*event);
+                self.write_u32(*window);
+                self.write_i16(*x);
+                self.write_i16(*y);
                 self.write_pad(16);
             },
             ServerEvent::ResizeRequest { window, width, height } => {
                 self.write_u8(protocol::REPLY_RESIZE_REQUEST);
                 self.write_pad(1);
                 self.write_u16(seq);
-                self.write_u32(window);
-                self.write_u16(width);
-                self.write_u16(height);
+                self.write_u32(*window);
+                self.write_u16(*width);
+                self.write_u16(*height);
                 self.write_pad(20);
             },
             ServerEvent::CirculateNotify { event, window, place } => {
                 self.write_u8(protocol::REPLY_CIRCULATE_NOTIFY);
                 self.write_pad(1);
                 self.write_u16(seq);
-                self.write_u32(event);
-                self.write_u32(window);
+                self.write_u32(*event);
+                self.write_u32(*window);
                 self.write_pad(4); // TODO: Spec says this is type "window", but that it is "unused"???
                 self.write_u8(place.val());
                 self.write_pad(15);
@@ -1126,8 +1126,8 @@ impl XClient { // This is actually a pretty nice feature for organization
                 self.write_u8(protocol::REPLY_CIRCULATE_REQUEST);
                 self.write_pad(1);
                 self.write_u16(seq);
-                self.write_u32(parent);
-                self.write_u32(window);
+                self.write_u32(*parent);
+                self.write_u32(*window);
                 self.write_pad(4);
                 self.write_u8(place.val());
                 self.write_pad(15);
@@ -1136,9 +1136,9 @@ impl XClient { // This is actually a pretty nice feature for organization
                 self.write_u8(protocol::REPLY_PROPERTY_NOTIFY);
                 self.write_pad(1);
                 self.write_u16(seq);
-                self.write_u32(window);
-                self.write_u32(atom);
-                self.write_u32(time);
+                self.write_u32(*window);
+                self.write_u32(*atom);
+                self.write_u32(*time);
                 self.write_u8(state.val());
                 self.write_pad(15);
             },
@@ -1146,59 +1146,59 @@ impl XClient { // This is actually a pretty nice feature for organization
                 self.write_u8(protocol::REPLY_SELECTION_CLEAR);
                 self.write_pad(1);
                 self.write_u16(seq);
-                self.write_u32(time);
-                self.write_u32(owner);
-                self.write_u32(selection);
+                self.write_u32(*time);
+                self.write_u32(*owner);
+                self.write_u32(*selection);
                 self.write_pad(16);
             },
             ServerEvent::SelectionRequest { time, owner, requestor, selection, target, property } => {
                 self.write_u8(protocol::REPLY_SELECTION_REQUEST);
                 self.write_pad(1);
                 self.write_u16(seq);
-                self.write_u32(time);
-                self.write_u32(owner);
-                self.write_u32(requestor);
-                self.write_u32(selection);
-                self.write_u32(target);
-                self.write_u32(property);
+                self.write_u32(*time);
+                self.write_u32(*owner);
+                self.write_u32(*requestor);
+                self.write_u32(*selection);
+                self.write_u32(*target);
+                self.write_u32(*property);
                 self.write_pad(4);
             },
             ServerEvent::SelectionNotify { time, requestor, selection, target, property } => {
                 self.write_u8(protocol::REPLY_SELECTION_NOTIFY);
                 self.write_pad(1);
                 self.write_u16(seq);
-                self.write_u32(time);
-                self.write_u32(requestor);
-                self.write_u32(selection);
-                self.write_u32(target);
-                self.write_u32(property);
+                self.write_u32(*time);
+                self.write_u32(*requestor);
+                self.write_u32(*selection);
+                self.write_u32(*target);
+                self.write_u32(*property);
                 self.write_pad(8);
             },
             ServerEvent::ColormapNotify { window, colormap, new, state } => {
                 self.write_u8(protocol::REPLY_COLORMAP_NOTIFY);
                 self.write_pad(1);
                 self.write_u16(seq);
-                self.write_u32(window);
-                self.write_u32(colormap);
-                self.write_bool(new);
+                self.write_u32(*window);
+                self.write_u32(*colormap);
+                self.write_bool(*new);
                 self.write_u8(state.val());
                 self.write_pad(18);
             },
             ServerEvent::ClientMessage { format, window, mtype, data } => {
                 self.write_u8(protocol::REPLY_CLIENT_MESSAGE);
-                self.write_u8(format);
+                self.write_u8(*format);
                 self.write_u16(seq);
-                self.write_u32(window);
-                self.write_u32(mtype);
-                self.write_raw(&data);
+                self.write_u32(*window);
+                self.write_u32(*mtype);
+                self.write_raw(data);
             },
             ServerEvent::MappingNotify { request, first_keycode, count } => {
                 self.write_u8(protocol::REPLY_MAPPING_NOTIFY);
                 self.write_pad(1);
                 self.write_u16(seq);
                 self.write_u8(request.val());
-                self.write_char(first_keycode);
-                self.write_u8(count);
+                self.write_char(*first_keycode);
+                self.write_u8(*count);
                 self.write_pad(25);
             }
         };
@@ -1210,7 +1210,7 @@ impl XClient { // This is actually a pretty nice feature for organization
      * `cursor` = 0 = none
      * `time` = 0 = current time
      */
-    pub fn grab_pointer(&mut self, grab_window: u32, confine_to: u32, cursor: u32, events: Vec<PointerEvent>, pointer_mode: PointerMode, keyboard_mode: KeyboardMode, owner_events: bool, time: u32) -> u16 {
+    pub fn grab_pointer(&mut self, grab_window: u32, confine_to: u32, cursor: u32, events: &Vec<PointerEvent>, pointer_mode: &PointerMode, keyboard_mode: &KeyboardMode, owner_events: bool, time: u32) -> u16 {
         self.write_u8(protocol::OP_GRAB_POINTER);
         self.write_bool(owner_events);
         self.write_u16(6);
@@ -1245,7 +1245,7 @@ impl XClient { // This is actually a pretty nice feature for organization
      * `button` = 0 = any button
      * `modifiers` = 0x8000 = any modifier
      */
-    pub fn grab_button(&mut self, button: u8, grab_window: u32, confine_to: u32, cursor: u32, events: Vec<PointerEvent>, pointer_mode: PointerMode, keyboard_mode: KeyboardMode, modifiers: Vec<Key>, owner_events: bool) {
+    pub fn grab_button(&mut self, button: u8, grab_window: u32, confine_to: u32, cursor: u32, events: &Vec<PointerEvent>, pointer_mode: &PointerMode, keyboard_mode: &KeyboardMode, modifiers: &Vec<Key>, owner_events: bool) {
         self.write_u8(protocol::OP_GRAB_BUTTON);
         self.write_bool(owner_events);
         self.write_u16(6);
@@ -1267,7 +1267,7 @@ impl XClient { // This is actually a pretty nice feature for organization
      * `button` = 0 = any button
      * `modifiers` = 0x8000 = any modifier
      */
-    pub fn ungrab_button(&mut self, button: u8, grab_window: u32, modifiers: Vec<Key>) {
+    pub fn ungrab_button(&mut self, button: u8, grab_window: u32, modifiers: &Vec<Key>) {
         self.write_u8(protocol::OP_UNGRAB_BUTTON);
         self.write_u8(button);
         self.write_u16(3);
@@ -1283,7 +1283,7 @@ impl XClient { // This is actually a pretty nice feature for organization
      * `cursor` = 0 = none
      * `time` = 0 = current time
      */
-    pub fn change_active_pointer_grab(&mut self, cursor: u32, time: u32, events: Vec<PointerEvent>) {
+    pub fn change_active_pointer_grab(&mut self, cursor: u32, time: u32, events: &Vec<PointerEvent>) {
         self.write_u8(protocol::OP_CHANGE_ACTIVE_POINTER_GRAB);
         self.write_pad(1);
         self.write_u16(4);
@@ -1299,7 +1299,7 @@ impl XClient { // This is actually a pretty nice feature for organization
      * Tells the X Server to [TODO]
      * `time` = 0 = current time
      */
-    pub fn grab_keyboard(&mut self, grab_window: u32, pointer_mode: PointerMode, keyboard_mode: KeyboardMode, owner_events: bool, time: u32) -> u16 {
+    pub fn grab_keyboard(&mut self, grab_window: u32, pointer_mode: &PointerMode, keyboard_mode: &KeyboardMode, owner_events: bool, time: u32) -> u16 {
         self.write_u8(protocol::OP_GRAB_KEYBOARD);
         self.write_bool(owner_events);
         self.write_u16(4);
@@ -1330,7 +1330,7 @@ impl XClient { // This is actually a pretty nice feature for organization
      * `modifiers` = 0x8000 = any modifier
      * `key` = 0 = any key
      */
-    pub fn grab_key(&mut self, key: char, grab_window: u32, pointer_mode: PointerMode, keyboard_mode: KeyboardMode, modifiers: Vec<Key>, owner_events: bool) {
+    pub fn grab_key(&mut self, key: char, grab_window: u32, pointer_mode: &PointerMode, keyboard_mode: &KeyboardMode, modifiers: &Vec<Key>, owner_events: bool) {
         self.write_u8(protocol::OP_GRAB_KEY);
         self.write_bool(owner_events);
         self.write_u16(4);
@@ -1349,7 +1349,7 @@ impl XClient { // This is actually a pretty nice feature for organization
      * `key` = 0 = any key
      * `modifiers` = 0x8000 = any modifier
      */
-    pub fn ungrab_key(&mut self, key: char, grab_window: u32, modifiers: Vec<Key>) {
+    pub fn ungrab_key(&mut self, key: char, grab_window: u32, modifiers: &Vec<Key>) {
         self.write_u8(protocol::OP_UNGRAB_KEY);
         self.write_char(key);
         self.write_u16(3);
@@ -1438,7 +1438,7 @@ impl XClient { // This is actually a pretty nice feature for organization
      * Tells the X Server to [TODO]
      * `time` = 0 = current time
      */
-    pub fn set_input_focus(&mut self, focus: u32, revert_to: InputFocusRevert, time: u32) {
+    pub fn set_input_focus(&mut self, focus: u32, revert_to: &InputFocusRevert, time: u32) {
         self.write_u8(protocol::OP_SET_INPUT_FOCUS);
         self.write_u8(revert_to.val());
         self.write_u16(3);
@@ -1555,7 +1555,7 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 
     /** Tells the X Server to create a pixmap */
-    pub fn create_pixmap(&mut self, pixmap: Pixmap) {
+    pub fn create_pixmap(&mut self, pixmap: &Pixmap) {
         self.write_u8(protocol::OP_CREATE_PIXMAP);
         self.write_u8(pixmap.depth);
         self.write_u16(4); // Request length
@@ -1578,7 +1578,7 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 
     /** Tells the X Server to create a graphics context */
-    pub fn create_gc(&mut self, gc: GraphicsContext) {
+    pub fn create_gc(&mut self, gc: &GraphicsContext) {
         self.write_u8(protocol::OP_CREATE_GC);
         self.write_pad(1);
         self.write_u16(4 + gc.values.len() as u16);
@@ -1590,7 +1590,7 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 
     /** Tells the X Server to create a graphics context */
-    pub fn change_gc(&mut self, gcid: u32, values: Vec<GraphicsContextValue>) {
+    pub fn change_gc(&mut self, gcid: u32, values: &Vec<GraphicsContextValue>) {
         self.write_u8(protocol::OP_CHANGE_GC);
         self.write_pad(1);
         self.write_u16(3 + values.len() as u16);
@@ -1601,7 +1601,7 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 
     /** Tells the X Server to [TODO] */
-    pub fn copy_gc(&mut self, src_gc: u32, dst_gc: u32, values_to_copy: Vec<GraphicsContextMask>) {
+    pub fn copy_gc(&mut self, src_gc: u32, dst_gc: u32, values_to_copy: &Vec<GraphicsContextMask>) {
         self.write_u8(protocol::OP_COPY_GC);
         self.write_pad(1);
         self.write_u16(4);
@@ -1613,14 +1613,14 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 
     /** Tells the X Server to [TODO] */
-    pub fn set_dashes(&mut self, gcid: u32, offset: u16, dashes: Vec<u8>) {
+    pub fn set_dashes(&mut self, gcid: u32, offset: u16, dashes: &Vec<u8>) {
         self.write_u8(protocol::OP_SET_DASHES);
         self.write_pad(1);
         let pad = self.write_dynamic_len(3, dashes.len());
         self.write_u32(gcid);
         self.write_u16(offset);
         self.write_u16(dashes.len() as u16);
-        for dash in &dashes {
+        for dash in dashes {
             self.write_u8(*dash);
         }
         self.write_pad_op(pad);
@@ -1629,14 +1629,14 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 
     /** Tells the X Server to [TODO] */
-    pub fn set_clip_rectangles(&mut self, gcid: u32, rectangles: Vec<Rectangle>, clip_x_origin: i16, clip_y_origin: i16, ordering: RectangleOrdering) {
+    pub fn set_clip_rectangles(&mut self, gcid: u32, rectangles: &Vec<Rectangle>, clip_x_origin: i16, clip_y_origin: i16, ordering: &RectangleOrdering) {
         self.write_u8(protocol::OP_SET_CLIP_RECTANGLES);
         self.write_u8(ordering.val());
         let pad = self.write_dynamic_len(3, rectangles.len() * 8);
         self.write_u32(gcid);
         self.write_i16(clip_x_origin);
         self.write_i16(clip_y_origin);
-        for rect in &rectangles {
+        for rect in rectangles {
             rect.write(self);
         }
         self.write_pad_op(pad);
@@ -1687,13 +1687,13 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 
     /** Tells the X Server to [TODO] */
-    pub fn poly_point(&mut self, drawable: u32, gcid: u32, points: Vec<Point>, mode: CoordinateMode) {
+    pub fn poly_point(&mut self, drawable: u32, gcid: u32, points: &Vec<Point>, mode: &CoordinateMode) {
         self.write_u8(protocol::OP_POLY_POINT);
         self.write_u8(mode.val());
         let pad = self.write_dynamic_len(3, points.len() * 4);
         self.write_u32(drawable);
         self.write_u32(gcid);
-        for point in &points {
+        for point in points {
             point.write(self);
         }
         self.write_pad(pad);
@@ -1702,13 +1702,13 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 
     /** Tells the X Server to [TODO] */
-    pub fn poly_line(&mut self, drawable: u32, gcid: u32, points: Vec<Point>, mode: CoordinateMode) {
+    pub fn poly_line(&mut self, drawable: u32, gcid: u32, points: &Vec<Point>, mode: &CoordinateMode) {
         self.write_u8(protocol::OP_POLY_LINE);
         self.write_u8(mode.val());
         let pad = self.write_dynamic_len(3, points.len() * 4);
         self.write_u32(drawable);
         self.write_u32(gcid);
-        for point in &points {
+        for point in points {
             point.write(self);
         }
         self.write_pad_op(pad);
@@ -1717,13 +1717,13 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 
     /** Tells the X Server to [TODO] */
-    pub fn poly_segment(&mut self, drawable: u32, gcid: u32, segments: Vec<Segment>) {
+    pub fn poly_segment(&mut self, drawable: u32, gcid: u32, segments: &Vec<Segment>) {
         self.write_u8(protocol::OP_POLY_SEGMENT);
         self.write_pad(1);
         let pad = self.write_dynamic_len(3, segments.len() * 8);
         self.write_u32(drawable);
         self.write_u32(gcid);
-        for segment in &segments {
+        for segment in segments {
             segment.write(self);
         }
         self.write_pad_op(pad);
@@ -1732,13 +1732,13 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 
     /** Tells the X Server to [TODO] */
-    pub fn poly_rectangle(&mut self, drawable: u32, gcid: u32, rectangles: Vec<Rectangle>) {
+    pub fn poly_rectangle(&mut self, drawable: u32, gcid: u32, rectangles: &Vec<Rectangle>) {
         self.write_u8(protocol::OP_POLY_RECTANGLE);
         self.write_pad(1);
         let pad = self.write_dynamic_len(3, rectangles.len() * 8);
         self.write_u32(drawable);
         self.write_u32(gcid);
-        for rect in &rectangles {
+        for rect in rectangles {
             rect.write(self);
         }
         self.write_pad_op(pad);
@@ -1747,13 +1747,13 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 
     /** Tells the X Server to [TODO] */
-    pub fn poly_arc(&mut self, drawable: u32, gcid: u32, arcs: Vec<Arc>) {
+    pub fn poly_arc(&mut self, drawable: u32, gcid: u32, arcs: &Vec<Arc>) {
         self.write_u8(protocol::OP_POLY_ARC);
         self.write_pad(1);
         let pad = self.write_dynamic_len(3, arcs.len() * 12);
         self.write_u32(drawable);
         self.write_u32(gcid);
-        for arc in &arcs {
+        for arc in arcs {
             arc.write(self);
         }
         self.write_pad_op(pad);
@@ -1762,7 +1762,7 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 
     /** Tells the X Server to [TODO] */
-    pub fn fill_poly(&mut self, drawable: u32, gcid: u32, points: Vec<Point>, shape: PolyShape, mode: CoordinateMode) {
+    pub fn fill_poly(&mut self, drawable: u32, gcid: u32, points: &Vec<Point>, shape: &PolyShape, mode: &CoordinateMode) {
         self.write_u8(protocol::OP_FILL_POLY);
         self.write_pad(1);
         let pad = self.write_dynamic_len(4, points.len() * 4);
@@ -1771,7 +1771,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u8(shape.val());
         self.write_u8(mode.val());
         self.write_pad(2);
-        for point in &points {
+        for point in points {
             point.write(self);
         }
         self.write_pad_op(pad);
@@ -1780,13 +1780,13 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 
     /** Tells the X Server to [TODO] */
-    pub fn poly_fill_rectangle(&mut self, drawable: u32, gcid: u32, rectangles: Vec<Rectangle>) {
+    pub fn poly_fill_rectangle(&mut self, drawable: u32, gcid: u32, rectangles: &Vec<Rectangle>) {
         self.write_u8(protocol::OP_POLY_FILL_RECTANGLE);
         self.write_pad(1);
         let pad = self.write_dynamic_len(3, rectangles.len() * 8);
         self.write_u32(drawable);
         self.write_u32(gcid);
-        for rect in &rectangles {
+        for rect in rectangles {
             rect.write(self);
         }
         self.write_pad_op(pad);
@@ -1795,13 +1795,13 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 
     /** Tells the X Server to [TODO] */
-    pub fn poly_fill_arc(&mut self, drawable: u32, gcid: u32, arcs: Vec<Arc>) {
+    pub fn poly_fill_arc(&mut self, drawable: u32, gcid: u32, arcs: &Vec<Arc>) {
         self.write_u8(protocol::OP_POLY_FILL_ARC);
         self.write_pad(1);
         let pad = self.write_dynamic_len(3, arcs.len() * 12);
         self.write_u32(drawable);
         self.write_u32(gcid);
-        for arc in &arcs {
+        for arc in arcs {
             arc.write(self);
         }
         self.write_pad_op(pad);
@@ -1810,7 +1810,7 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 
     /** Tells the X Server to [TODO] */
-    pub fn put_image(&mut self, drawable: u32, gcid: u32, data: Vec<u8>, width: u16, height: u16, x: i16, y: i16, left_pad: u8, depth: u8, format: ImageFormat) {
+    pub fn put_image(&mut self, drawable: u32, gcid: u32, data: &Vec<u8>, width: u16, height: u16, x: i16, y: i16, left_pad: u8, depth: u8, format: &ImageFormat) {
         self.write_u8(protocol::OP_PUT_IMAGE);
         self.write_u8(format.val());
         let pad = self.write_dynamic_len(6, data.len());
@@ -1833,7 +1833,7 @@ impl XClient { // This is actually a pretty nice feature for organization
      * Tells the X Server to [TODO]
      * `format` may only be ImageFormat::XYPixmap or ImageFormat::ZPixmap
      */
-    pub fn get_image(&mut self, drawable: u32, x: i16, y: i16, width: u16, height: u16, plane_mask: u32, format: ImageFormat) -> u16 {
+    pub fn get_image(&mut self, drawable: u32, x: i16, y: i16, width: u16, height: u16, plane_mask: u32, format: &ImageFormat) -> u16 {
         self.write_u8(protocol::OP_GET_IMAGE);
         self.write_u8(format.val());
         self.write_u16(5);
@@ -1852,9 +1852,9 @@ impl XClient { // This is actually a pretty nice feature for organization
      * `texts` is TextItem8Text or TextItem8Font
      * A TextItem8Text entry in `texts` must be 254 or less characters
      */
-    pub fn poly_text_8<T: TextItem8>(&mut self, drawable: u32, gcid: u32, x: i16, y: i16, texts: Vec<T>) {
+    pub fn poly_text8<T: TextItem8>(&mut self, drawable: u32, gcid: u32, x: i16, y: i16, texts: &Vec<T>) {
         let mut len = 0;
-        for text in &texts {
+        for text in texts {
             len += text.len();
         }
 
@@ -1865,7 +1865,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u32(gcid);
         self.write_i16(x);
         self.write_i16(y);
-        for text in &texts {
+        for text in texts {
             text.write(self);
         }
         self.write_pad_op(pad);
@@ -1878,9 +1878,9 @@ impl XClient { // This is actually a pretty nice feature for organization
      * `texts` is TextItem16Text or TextItem16Font
      * A TextItem16Text entry in `texts` must be 254 or less characters
      */
-    pub fn poly_text_16<T: TextItem16>(&mut self, drawable: u32, gcid: u32, x: i16, y: i16, texts: Vec<T>) {
+    pub fn poly_text16<T: TextItem16>(&mut self, drawable: u32, gcid: u32, x: i16, y: i16, texts: &Vec<T>) {
         let mut len = 0;
-        for text in &texts {
+        for text in texts {
             len += text.len();
         }
 
@@ -1891,7 +1891,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u32(gcid);
         self.write_i16(x);
         self.write_i16(y);
-        for text in &texts {
+        for text in texts {
             text.write(self);
         }
         self.write_pad_op(pad);
@@ -1903,7 +1903,7 @@ impl XClient { // This is actually a pretty nice feature for organization
      * Tells the X Server to [TODO] 
      * `text` must be 255 or less characters
      */
-    pub fn image_text_8(&mut self, drawable: u32, gcid: u32, text: &str, x: i16, y: i16) {
+    pub fn image_text8(&mut self, drawable: u32, gcid: u32, text: &str, x: i16, y: i16) {
         self.write_u8(protocol::OP_IMAGE_TEXT8);
         self.write_u8(text.len() as u8);
         let pad = self.write_dynamic_len(4, text.len());
@@ -1921,7 +1921,7 @@ impl XClient { // This is actually a pretty nice feature for organization
      * Tells the X Server to [TODO]
      * `text` must have 255 or less elements
      */
-    pub fn image_text_16(&mut self, drawable: u32, gcid: u32, text: &Vec<u16>, x: i16, y: i16) {
+    pub fn image_text16(&mut self, drawable: u32, gcid: u32, text: &Vec<u16>, x: i16, y: i16) {
         self.write_u8(protocol::OP_IMAGE_TEXT16);
         self.write_u8(text.len() as u8);
         let pad = self.write_dynamic_len(4, text.len() * 2);
@@ -1935,7 +1935,7 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 
     /** Tells the X Server to [TODO] */
-    pub fn create_colormap(&mut self, cmid: u32, wid: u32, vid: u32, mode: AllocMode) {
+    pub fn create_colormap(&mut self, cmid: u32, wid: u32, vid: u32, mode: &AllocMode) {
         self.write_u8(protocol::OP_CREATE_COLORMAP);
         self.write_u8(mode.val());
         self.write_u16(4);
@@ -2052,13 +2052,13 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 
     /** Tells the X Server to [TODO] */
-    pub fn free_colors(&mut self, cmid: u32, plane_mask: u32, pixels: Vec<u32>) {
+    pub fn free_colors(&mut self, cmid: u32, plane_mask: u32, pixels: &Vec<u32>) {
         self.write_u8(protocol::OP_FREE_COLORS);
         self.write_pad(1);
 		let pad = self.write_dynamic_len(3, pixels.len() * 4);
 		self.write_u32(cmid);
 		self.write_u32(plane_mask);
-        for pixel in &pixels {
+        for pixel in pixels {
             self.write_u32(*pixel);
         }
 		self.write_pad_op(pad);
@@ -2067,12 +2067,12 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 
     /** Tells the X Server to [TODO] */
-    pub fn store_colors(&mut self, cmid: u32, items: Vec<ColorItem>) {
+    pub fn store_colors(&mut self, cmid: u32, items: &Vec<ColorItem>) {
         self.write_u8(protocol::OP_STORE_COLORS);
         self.write_pad(1);
 		let pad = self.write_dynamic_len(2, items.len() * 12);
 		self.write_u32(cmid);
-        for item in &items {
+        for item in items {
             item.write(self);
         }
 		self.write_pad_op(pad);
@@ -2107,12 +2107,12 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 
     /** Tells the X Server to [TODO] */
-    pub fn query_colors(&mut self, cmid: u32, pixels: Vec<u32>) -> u16 {
+    pub fn query_colors(&mut self, cmid: u32, pixels: &Vec<u32>) -> u16 {
         self.write_u8(protocol::OP_QUERY_COLORS);
         self.write_pad(1);
 		let pad = self.write_dynamic_len(2, pixels.len() * 4);
 		self.write_u32(cmid);
-        for pixel in &pixels {
+        for pixel in pixels {
             self.write_u32(*pixel);
         }
 		self.write_pad_op(pad);
@@ -2207,7 +2207,7 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 
     /** Tells the X Server to [TODO] */
-    pub fn query_best_size(&mut self, drawable: u32, class: SizeClass, width: u16, height: u16) -> u16 {
+    pub fn query_best_size(&mut self, drawable: u32, class: &SizeClass, width: u16, height: u16) -> u16 {
         self.write_u8(protocol::OP_QUERY_BEST_SIZE);
         self.write_u8(class.val());
 		self.write_u16(3);
@@ -2241,7 +2241,7 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 
     /** Tells the X Server to [TODO] */
-    pub fn change_keyboard_mapping(&mut self, first: char, keysyms: Vec<u32>) {
+    pub fn change_keyboard_mapping(&mut self, first: char, keysyms: &Vec<u32>) {
         self.write_u8(protocol::OP_CHANGE_KEYBOARD_MAPPING);
         panic!("Not implemented yet");
 
@@ -2261,7 +2261,7 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 
     /** Tells the X Server to [TODO] */
-    pub fn change_keyboard_control(&mut self, values: Vec<KeyboardControlValue>) {
+    pub fn change_keyboard_control(&mut self, values: &Vec<KeyboardControlValue>) {
         self.write_u8(protocol::OP_CHANGE_KEYBOARD_CONTROL);
         self.write_pad(1);
 		let pad = self.write_dynamic_len(2, values.len() * 4);
@@ -2313,7 +2313,7 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 
     /** Tells the X Server to [TODO] */
-    pub fn set_screen_saver(&mut self, timeout: i16, interval: i16, prefer_blanking: YesNoDefault, allow_exposures: YesNoDefault) {
+    pub fn set_screen_saver(&mut self, timeout: i16, interval: i16, prefer_blanking: &YesNoDefault, allow_exposures: &YesNoDefault) {
         self.write_u8(protocol::OP_SET_SCREEN_SAVER);
         self.write_pad(1);
 		self.write_u16(3);
@@ -2338,7 +2338,7 @@ impl XClient { // This is actually a pretty nice feature for organization
     /** Tells the X Server to [TODO]
      * `family` must be one of HostFamily{Internet,DECnet,Chaos}
     */
-    pub fn change_hosts(&mut self, address: &Vec<u8>, family: HostFamily, mode: ChangeHostMode) {
+    pub fn change_hosts(&mut self, address: &Vec<u8>, family: &HostFamily, mode: &ChangeHostMode) {
         self.write_u8(protocol::OP_CHANGE_HOSTS);
         self.write_u8(mode.val());
 		let pad = self.write_dynamic_len(2, address.len());
@@ -2370,7 +2370,7 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 
     /** Tells the X Server to [TODO] */
-    pub fn set_close_down_mode(&mut self, mode: CloseDownMode) {
+    pub fn set_close_down_mode(&mut self, mode: &CloseDownMode) {
         self.write_u8(protocol::OP_SET_CLOSE_DOWN_MODE);
         self.write_u8(mode.val());
 		self.write_u16(1);
@@ -2392,14 +2392,14 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 
     /** Tells the X Server to [TODO] */
-    pub fn rotate_properties(&mut self, wid: u32, properties: Vec<u32>, delta: i16) {
+    pub fn rotate_properties(&mut self, wid: u32, properties: &Vec<u32>, delta: i16) {
         self.write_u8(protocol::OP_ROTATE_PROPERTIES);
         self.write_pad(1);
 		let pad = self.write_dynamic_len(3, properties.len() * 4);
 		self.write_u32(wid);
 		self.write_u16(properties.len() as u16);
 		self.write_i16(delta);
-        for prop in &properties {
+        for prop in properties {
             self.write_u32(*prop);
         }
 		self.write_pad_op(pad);
@@ -2420,7 +2420,7 @@ impl XClient { // This is actually a pretty nice feature for organization
      * Tells the X Server to [TODO]
      * `map` must be 255 or less elements
      */
-    pub fn set_pointer_mapping(&mut self, map: Vec<u8>) -> u16 {
+    pub fn set_pointer_mapping(&mut self, map: &Vec<u8>) -> u16 {
         self.write_u8(protocol::OP_SET_POINTER_MAPPING);
         self.write_u8(map.len() as u8);
 		let pad = self.write_dynamic_len(1, map.len());
@@ -2443,7 +2443,7 @@ impl XClient { // This is actually a pretty nice feature for organization
      * Tells the X Server to [TODO]
      * `keycodes` must have 255 or less elements
      */
-    pub fn set_modifier_mapping(&mut self, keycodes: Vec<char>) -> u16 {
+    pub fn set_modifier_mapping(&mut self, keycodes: &Vec<char>) -> u16 {
         self.write_u8(protocol::OP_SET_MODIFIER_MAPPING);
         self.write_u8(keycodes.len() as u8);
 		let pad = self.write_dynamic_len(1, keycodes.len() * 8);
