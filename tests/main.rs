@@ -94,7 +94,7 @@ mod tests {
             class: WindowInputType::CopyFromParent,
             visual_id: 0, // CopyFromParent
             values: vec![
-                WindowValue::BackgroundPixel(0x00FF00),
+                WindowValue::BackgroundPixel(0x00FFFF),
                 WindowValue::Colormap(0)
             ]
         };
