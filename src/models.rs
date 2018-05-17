@@ -693,6 +693,155 @@ impl Screen {
     }
 }
 
+pub trait Drawable {
+    fn get_drawable(&self) -> u32;
+
+    /** Tells the X server to [TODO] */
+    fn draw_point(&self, client: &mut XClient, gcid: u32, point: Point, mode: &CoordinateMode) {
+        client.poly_point(self.get_drawable(), gcid, &vec![point], mode)
+    }
+
+    /** Tells the X server to [TODO] */
+    fn draw_points(&self, client: &mut XClient, gcid: u32, points: &Vec<Point>, mode: &CoordinateMode) {
+        client.poly_point(self.get_drawable(), gcid, points, mode)
+    }
+
+    /** Tells the X Server to [TODO] */
+    fn draw_line(&self, client: &mut XClient, gcid: u32, point: Point, mode: &CoordinateMode) {
+        client.poly_line(self.get_drawable(), gcid, &vec![point], mode)
+    }
+
+    /** Tells the X Server to [TODO] */
+    fn draw_lines(&self, client: &mut XClient, gcid: u32, points: &Vec<Point>, mode: &CoordinateMode) {
+        client.poly_line(self.get_drawable(), gcid, points, mode)
+    }
+
+    /** Tells the X Server to [TODO] */
+    fn draw_seg(&self, client: &mut XClient, gcid: u32, segment: Segment) {
+        client.poly_segment(self.get_drawable(), gcid, &vec![segment])
+    }
+
+    /** Tells the X Server to [TODO] */
+    fn draw_segs(&self, client: &mut XClient, gcid: u32, segments: &Vec<Segment>) {
+        client.poly_segment(self.get_drawable(), gcid, segments)
+    }
+
+    /** Tells the X Server to [TODO] */
+    fn draw_rect(&self, client: &mut XClient, gcid: u32, rectangle: Rectangle) {
+        client.poly_rectangle(self.get_drawable(), gcid, &vec![rectangle])
+    }
+
+    /** Tells the X Server to [TODO] */
+    fn draw_rects(&self, client: &mut XClient, gcid: u32, rectangles: &Vec<Rectangle>) {
+        client.poly_rectangle(self.get_drawable(), gcid, rectangles)
+    }
+
+    /** Tells the X Server to [TODO] */
+    fn draw_arc(&self, client: &mut XClient, gcid: u32, arc: Arc) {
+        client.poly_arc(self.get_drawable(), gcid, &vec![arc])
+    }
+
+    /** Tells the X Server to [TODO] */
+    fn draw_arcs(&self, client: &mut XClient, gcid: u32, arcs: &Vec<Arc>) {
+        client.poly_arc(self.get_drawable(), gcid, arcs)
+    }
+
+    /** Tells the X Server to [TODO] */
+    fn fill_poly(&self, client: &mut XClient, gcid: u32, point: Point, shape: &PolyShape, mode: &CoordinateMode) {
+        client.fill_poly(self.get_drawable(), gcid, &vec![point], shape, mode)
+    }
+
+    /** Tells the X Server to [TODO] */
+    fn fill_polys(&self, client: &mut XClient, gcid: u32, points: &Vec<Point>, shape: &PolyShape, mode: &CoordinateMode) {
+        client.fill_poly(self.get_drawable(), gcid, points, shape, mode)
+    }
+
+    /** Tells the X Server to [TODO] */
+    fn fill_rect(&self, client: &mut XClient, gcid: u32, rectangle: Rectangle) {
+        client.poly_fill_rectangle(self.get_drawable(), gcid, &vec![rectangle])
+    }
+
+    /** Tells the X Server to [TODO] */
+    fn fill_rects(&self, client: &mut XClient, gcid: u32, rectangles: &Vec<Rectangle>) {
+        client.poly_fill_rectangle(self.get_drawable(), gcid, rectangles)
+    }
+
+    /** Tells the X Server to [TODO] */
+    fn poly_fill_arc(&self, client: &mut XClient, gcid: u32, arc: Arc) {
+        client.poly_fill_arc(self.get_drawable(), gcid, &vec![arc])
+    }
+
+    /** Tells the X Server to [TODO] */
+    fn poly_fill_arcs(&self, client: &mut XClient, gcid: u32, arcs: &Vec<Arc>) {
+        client.poly_fill_arc(self.get_drawable(), gcid, arcs)
+    }
+
+    /** Tells the X Server to [TODO] */
+    fn put_image(&self, client: &mut XClient, gcid: u32, data: &Vec<u8>, width: u16, height: u16, x: i16, y: i16, left_pad: u8, depth: u8, format: &ImageFormat) {
+        client.put_image(self.get_drawable(), gcid, data, width, height, x, y, left_pad, depth, format)
+    }
+
+    /**
+     * Tells the X Server to [TODO]
+     * `format` may only be ImageFormat::XYPixmap or ImageFormat::ZPixmap
+     */
+    fn get_image(&self, client: &mut XClient, x: i16, y: i16, width: u16, height: u16, plane_mask: u32, format: &ImageFormat) -> u16 {
+        client.get_image(self.get_drawable(), x, y, width, height, plane_mask, format)
+    }
+
+    /**
+     * Tells the X Server to [TODO]
+     * `texts` is TextItem8Text or TextItem8Font
+     * A TextItem8Text entry in `texts` must be 254 or less characters
+     */
+    fn text8<T: TextItem8>(&self, client: &mut XClient, gcid: u32, x: i16, y: i16, text: T) {
+        client.poly_text8(self.get_drawable(), gcid, x, y, &vec![text])
+    }
+    
+    /**
+     * Tells the X Server to [TODO]
+     * `texts` is TextItem8Text or TextItem8Font
+     * A TextItem8Text entry in `texts` must be 254 or less characters
+     */
+    fn text8s<T: TextItem8>(&self, client: &mut XClient, gcid: u32, x: i16, y: i16, texts: &Vec<T>) {
+        client.poly_text8(self.get_drawable(), gcid, x, y, texts)
+    }
+
+    /**
+     * Tells the X Server to [TODO]
+     * `texts` is TextItem16Text or TextItem16Font
+     * A TextItem16Text entry in `texts` must be 254 or less characters
+     */
+    fn text16<T: TextItem16>(&self, client: &mut XClient, gcid: u32, x: i16, y: i16, text: T) {
+        client.poly_text16(self.get_drawable(), gcid, x, y, &vec![text])
+    }
+
+    /**
+     * Tells the X Server to [TODO]
+     * `texts` is TextItem16Text or TextItem16Font
+     * A TextItem16Text entry in `texts` must be 254 or less characters
+     */
+    fn text16s<T: TextItem16>(&self, client: &mut XClient, gcid: u32, x: i16, y: i16, texts: &Vec<T>) {
+        client.poly_text16(self.get_drawable(), gcid, x, y, texts)
+    }
+
+    /**
+     * Tells the X Server to [TODO] 
+     * `text` must be 255 or less characters
+     */
+    fn image_text8(&self, client: &mut XClient, gcid: u32, text: &str, x: i16, y: i16) {
+        client.image_text8(self.get_drawable(), gcid, text, x, y)
+    }
+
+    /**
+     * Tells the X Server to [TODO]
+     * `text` must have 255 or less elements
+     */
+    fn image_text16(&self, client: &mut XClient, gcid: u32, text: &Vec<u16>, x: i16, y: i16) {
+        client.image_text16(self.get_drawable(), gcid, text, x, y)
+    }
+}
+
 #[derive(Debug)]
 pub struct Window {
     pub depth: u8,
@@ -709,12 +858,12 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn change_attrs(&mut self, client: &mut XClient, values: Vec<WindowValue>) {
+    pub fn change(&mut self, client: &mut XClient, values: Vec<WindowValue>) {
         self.values = values;
         client.change_window_attributes(self.wid, &self.values);
     }
 
-    pub fn set_attr(&mut self, client: &mut XClient, value: WindowValue) {
+    pub fn set(&mut self, client: &mut XClient, value: WindowValue) {
         let mut new_pos = self.values.len();
 
         for (i, val) in self.values.iter().enumerate() {
@@ -732,6 +881,13 @@ impl Window {
         }
 
         client.change_window_attributes(self.wid, &self.values);
+    }
+}
+
+impl Drawable for Window {
+    #[inline(always)]
+    fn get_drawable(&self) -> u32 {
+        self.wid
     }
 }
 
@@ -800,11 +956,45 @@ pub struct Pixmap {
     pub height: u16
 }
 
+impl Drawable for Pixmap {
+    #[inline(always)]
+    fn get_drawable(&self) -> u32 {
+        self.pid
+    }
+}
+
 #[derive(Debug)]
 pub struct GraphicsContext {
     pub gcid: u32, // Graphic Context ID
     pub drawable: u32, // Window or Pixmap ID
     pub values: Vec<GraphicsContextValue>
+}
+
+impl GraphicsContext {
+    pub fn change(&mut self, client: &mut XClient, values: Vec<GraphicsContextValue>) {
+        self.values = values;
+        client.change_gc(self.gcid, &self.values);
+    }
+
+    pub fn set(&mut self, client: &mut XClient, value: GraphicsContextValue) {
+        let mut new_pos = self.values.len();
+
+        for (i, val) in self.values.iter().enumerate() {
+            if discriminant(val) == discriminant(&value) {
+                new_pos = i;
+                break;
+            }
+        }
+
+        if new_pos == self.values.len() {
+            self.values.push(value);
+        } else {
+            self.values.remove(new_pos);
+            self.values.insert(new_pos, value);
+        }
+
+        client.change_gc(self.gcid, &self.values);
+    }
 }
 
 #[derive(Debug)]

@@ -11,6 +11,8 @@ mod tests {
         // Connect
         //let mut client = XClient::new(String::from("/tmp/.X11-unix/X1"));
         let mut client = XClient::connect(String::from("/tmp/.X11-unix/X9"));
+        let bgsize = 500;
+        let ibgsize = bgsize as i16;
 
         ///////////////////////////////////
         //// TESTING
@@ -21,24 +23,36 @@ mod tests {
             depth: client.connect_info.screens[0].root_depth,
             pid: client.new_resource_id(),
             drawable: client.connect_info.screens[0].root,
-            width: 20,
-            height: 20
+            width: bgsize,
+            height: bgsize
         };
-        let pid = pixmap.pid;
-
-        client.create_pixmap(pixmap);
+        client.create_pixmap(&pixmap);
 
         // Create GC (graphics context)
-        let gc = GraphicsContext {
+        let mut gc = GraphicsContext {
             gcid: client.new_resource_id(),
             drawable: client.connect_info.screens[0].root,
             values: vec![
                 GraphicsContextValue::Background(client.connect_info.screens[0].black_pixel),
-                GraphicsContextValue::Foreground(client.connect_info.screens[0].white_pixel)
+                GraphicsContextValue::Foreground(client.connect_info.screens[0].black_pixel)
             ]
         };
+        client.create_gc(&gc);
+        let gcid = gc.gcid;
 
-        client.create_gc(gc);
+        // Draw backgorund and some arcs
+        pixmap.fill_rect(&mut client, gcid, Rectangle { x: 0, y: 0, width: bgsize, height: bgsize });
+        //client.poly_fill_rectangle(pixmap.pid, gcid, &vec![Rectangle { x: 0, y: 0, width: bgsize, height: bgsize }]);
+        let white = client.connect_info.screens[0].white_pixel;
+        //client.change_gc(gc.gcid, &vec![GraphicsContextValue::Foreground(white)]);
+        gc.set(&mut client, GraphicsContextValue::Foreground(white));
+        pixmap.draw_arcs(&mut client, gcid, &vec![
+        //client.poly_arc(pixmap.pid, gcid, &vec![
+            Arc { x: -ibgsize / 2, y: 0, width: bgsize, height: bgsize, angle1: 0, angle2: 360 * 64 },
+            Arc { x: ibgsize / 2, y: 0, width: bgsize, height: bgsize, angle1: 0, angle2: 360 * 64 },
+            Arc { x: 0, y: -ibgsize / 2, width: bgsize, height: bgsize, angle1: 0, angle2: 360 * 64 },
+            Arc { x: 0, y: ibgsize / 2, width: bgsize, height: bgsize, angle1: 0, angle2: 360 * 64 }
+        ]);
 
         // Create a window
         let mut window = Window {
@@ -53,7 +67,7 @@ mod tests {
             class: WindowInputType::InputOutput,
             visual_id: 0, // CopyFromParent
             values: vec![
-                WindowValue::BackgroundPixmap(pid),
+                WindowValue::BackgroundPixmap(pixmap.pid),
                 WindowValue::EventMask(Event::ButtonRelease.val() | Event::StructureNotify.val()),
                 WindowValue::Colormap(0x0)
             ]
@@ -61,10 +75,30 @@ mod tests {
         client.create_window(&window);
         
         // Change the window a lil
-        window.set_attr(&mut client, WindowValue::EventMask(Event::ButtonRelease.val() | Event::ButtonPress.val() | Event::StructureNotify.val()));
+        window.set(&mut client, WindowValue::EventMask(Event::ButtonRelease.val() | Event::ButtonPress.val() | Event::StructureNotify.val()));
 
         // Map the window (make it visible)
         client.map_window(window.wid);
+
+        // Create a child window
+        let child = Window {
+            depth: client.connect_info.screens[0].root_depth,
+            wid: client.new_resource_id(),
+            parent: window.wid,
+            x: 20,
+            y: 20,
+            width: 20,
+            height: 20,
+            border_width: 0,
+            class: WindowInputType::CopyFromParent,
+            visual_id: 0, // CopyFromParent
+            values: vec![
+                WindowValue::BackgroundPixel(client.connect_info.screens[0].white_pixel),
+                WindowValue::Colormap(0)
+            ]
+        };
+        client.create_window(&child);
+        client.map_window(child.wid);
 
         // Test replies
         let seq = client.get_window_attributes(window.wid);

@@ -50,4 +50,5 @@ Using this to track what I have done in case I ever want to write something abou
                 - `read_([a-z_]+)([A-Z])` -> `read_\1_\L\2` to convert following uppercase letters to snake
                 - `\s+ServerReplyType::\w+ => reader.(\w+)\(detail\),` -> `    /** Reads TODO */\n    pub fn \1(&mut self, TODO: u8) -> Option<ServerReply> {\n        \n    }\n`
                     to convert the function names to function definitions
-        - Modify spec parser to read replies. Make the vast majority of replies.
+        - Modify spec parser to read replies. Make the vast majority of replies (although not all of them)
+    - Work on object mappings. Ie Drawable.arc(...), GraphicsContext.set(...)
