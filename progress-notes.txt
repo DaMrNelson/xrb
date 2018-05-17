@@ -41,4 +41,13 @@ Using this to track what I have done in case I ever want to write something abou
                 - Also did the enums at this point (manually)
             - Have a script generate the mass of the body
             - Fine tune the body manually (ie variable request lengths, parameter name changes, etc)
-            - 
+    - Start working on getting all reply types
+        - Use sublime text to convert the completed list of reply names to function names and stuff
+            - Copy from ServerReplyType in enums
+            - Change "[enum]" to "ServerReplyType::[enum] => reader.read_[enum]_reply(detail),
+            - Use regex in Sublime text to convert the function to snake case (case sensitive)
+                - `read_([A-Z])` -> `read_\L\1` to convert first letter to lowercase
+                - `read_([a-z_]+)([A-Z])` -> `read_\1_\L\2` to convert following uppercase letters to snake
+                - `\s+ServerReplyType::\w+ => reader.(\w+)\(detail\),` -> `    /** Reads TODO */\n    pub fn \1(&mut self, TODO: u8) -> Option<ServerReply> {\n        \n    }\n`
+                    to convert the function names to function definitions
+        - Modify spec parser to read replies. Make the vast majority of replies.

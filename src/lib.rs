@@ -225,8 +225,47 @@ impl XClient {
                                 match match method {
                                     ServerReplyType::GetWindowAttributes => reader.read_get_window_attributes_reply(detail),
                                     ServerReplyType::ListFontsWithInfo => reader.read_list_fonts_with_info_reply(detail),
-                                    // TODO: More
-                                    _ => panic!("Reply not implemented yet.")
+                                    ServerReplyType::GetWindowAttributes => reader.read_get_window_attributes_reply(detail),
+                                    ServerReplyType::GetGeometry => reader.read_get_geometry_reply(detail),
+                                    ServerReplyType::QueryTree => reader.read_query_tree_reply(),
+                                    ServerReplyType::InternAtom => reader.read_intern_atom_reply(),
+                                    ServerReplyType::GetAtomName => reader.read_get_atom_name_reply(),
+                                    ServerReplyType::GetProperty => reader.read_get_property_reply(detail),
+                                    ServerReplyType::ListProperties => reader.read_list_properties_reply(),
+                                    ServerReplyType::GetSelectionOwner => reader.read_get_selection_owner_reply(),
+                                    ServerReplyType::GrabPointer => reader.read_grab_pointer_reply(detail),
+                                    ServerReplyType::GrabKeyboard => reader.read_grab_keyboard_reply(detail),
+                                    ServerReplyType::QueryPointer => reader.read_query_pointer_reply(detail),
+                                    ServerReplyType::GetMotionEvents => reader.read_get_motion_events_reply(),
+                                    ServerReplyType::TranslateCoordinates => reader.read_translate_coordinates_reply(detail),
+                                    ServerReplyType::GetInputFocus => reader.read_get_input_focus_reply(detail),
+                                    ServerReplyType::QueryKeymap => reader.read_query_keymap_reply(),
+                                    ServerReplyType::QueryFont => reader.read_query_font_reply(),
+                                    ServerReplyType::QueryTextExtents => reader.read_query_text_extents_reply(detail),
+                                    ServerReplyType::ListFonts => reader.read_list_fonts_reply(),
+                                    ServerReplyType::ListFontsWithInfo => reader.read_list_fonts_with_info_reply(detail), // Note: One request will generate multiple replies here. The info specifies how to determine this
+                                    ServerReplyType::GetFontPath => reader.read_get_font_path_reply(),
+                                    ServerReplyType::GetImage => reader.read_get_image_reply(detail),
+                                    ServerReplyType::ListInstalledColormaps => reader.read_list_installed_colormaps_reply(),
+                                    ServerReplyType::AllocColor => reader.read_alloc_color_reply(),
+                                    ServerReplyType::AllocNamedColor => reader.read_alloc_named_color_reply(),
+                                    ServerReplyType::AllocColorCells => reader.read_alloc_color_cells_reply(),
+                                    ServerReplyType::AllocColorPlanes => reader.read_alloc_color_planes_reply(),
+                                    ServerReplyType::QueryColors => reader.read_query_colors_reply(),
+                                    ServerReplyType::LookupColor => reader.read_lookup_color_reply(),
+                                    ServerReplyType::QueryBestSize => reader.read_query_best_size_reply(),
+                                    ServerReplyType::QueryExtension => reader.read_query_extension_reply(),
+                                    ServerReplyType::ListExtensions => reader.read_list_extensions_reply(detail),
+                                    ServerReplyType::GetKeyboardMapping => reader.read_get_keyboard_mapping_reply(detail),
+                                    ServerReplyType::GetKeyboardControl => reader.read_get_keyboard_control_reply(detail),
+                                    ServerReplyType::GetPointerControl => reader.read_get_pointer_control_reply(),
+                                    ServerReplyType::GetScreenSaver => reader.read_get_screen_saver_reply(),
+                                    ServerReplyType::ListHosts => reader.read_list_hosts_reply(detail),
+                                    ServerReplyType::SetPointerMapping => reader.read_set_pointer_mapping_reply(detail),
+                                    ServerReplyType::GetPointerMapping => reader.read_get_pointer_mapping_reply(detail),
+                                    ServerReplyType::SetModifierMapping => reader.read_set_modifier_mapping_reply(detail),
+                                    ServerReplyType::GetModifierMapping => reader.read_get_modifier_mapping_reply(detail),
+                                    ServerReplyType::None => panic!("Reply type should not be none.")
                                 } {
                                     Some(x) => x,
                                     None => continue
@@ -2296,7 +2335,9 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_sequence(ServerReplyType::GetScreenSaver)
     }
 
-    /** Tells the X Server to [TODO] */
+    /** Tells the X Server to [TODO]
+     * `family` must be one of HostFamily{Internet,DECnet,Chaos}
+    */
     pub fn change_hosts(&mut self, address: &Vec<u8>, family: HostFamily, mode: ChangeHostMode) {
         self.write_u8(protocol::OP_CHANGE_HOSTS);
         self.write_u8(mode.val());

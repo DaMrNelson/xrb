@@ -9,10 +9,10 @@ There is a lot of ground to cover so progress may seem a bit slow, but if there 
 
 # So what's done?
 - Connect with no auth
-- All standard requests (not all have been tested)
+- All standard requests
 - Subscribe to events
-- Get events, errors, and two replies from the X Server
-    - Temporarily ignore messages from the X Server until you get an error/reply with your sequence number (stores messages for later usage)
+- Get events, errors, and most replies from the X Server
+- Can temporarily ignore messages from the X Server until you get an error/reply with your sequence number (stores messages for later usage)
 
 # How Does It Work?
 - A listener thread is spawned that reads messages from the server forever
@@ -35,6 +35,11 @@ See tests/main.rs for some example usage.
         - read_keymap_notify
         - set_font_path
         - change_keyboard_mapping
+        - QueryFont response (enum and reading)
+        - GetKeyboardMapping response
+        - GetKeyboardControl response (I have some bindings, but I need to look into the spec to see what this is supposed to do)
+        - GetImage response (how do you know when you have read it all?)
+        - Should GetKeyboardControl response's auto-repeats list be an enum?
     - Multithread usage?
         - Thread lock when creating new resource IDs. Or maybe just thread lock the entire thing? Idk yet.
     - Allow re-use of used resource IDs
