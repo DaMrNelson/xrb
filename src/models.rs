@@ -151,7 +151,6 @@ pub enum ServerReplyType { // Used to specify a ServerReply type without creatin
     GetPointerMapping,
     SetModifierMapping,
     GetModifierMapping,
-    BadReply,
     None
 }
 
@@ -174,7 +173,85 @@ pub enum ServerReply {
         your_event_mask: u32,
         do_not_propagate_mask: u16
     },
-    ListFontsWithInfoEntry {
+    GetGeometry {
+        root: u32,
+        depth: u8,
+        x: i16,
+        y: i16,
+        width: u16,
+        height: u16,
+        border_width: u16
+    },
+    QueryTree {
+        root: u32,
+        parent: u32, // 0 = None
+        wids: Vec<u32>
+    },
+    InternAtom {
+        atom: u32 // 0 = None
+    },
+    GetAtomName {
+        name: String
+    },
+    GetProperty {
+        vtype: u32, // atom, 0 = None
+        value: Vec<u8>
+    },
+    ListProperties {
+        atoms: Vec<u32>
+    },
+    GetSelectionOwner {
+        wid: u32
+    },
+    GrabPointer {
+        status: GrabStatus
+    },
+    GrabKeyboard {
+        status: GrabStatus
+    },
+    QueryPointer {
+        root: u32,
+        child: u32, // 0 = none
+        root_x: i16,
+        root_y: i16,
+        win_x: i16,
+        win_y: i16,
+        key_buttons: Vec<KeyButton>,
+        same_screen: bool
+    },
+    GetMotionEvents {
+        events: Vec<TimeCoordinate>
+    },
+    TranslateCoordinates {
+        child: u32, // 0 = none
+        dst_x: i16,
+        dst_y: i16,
+        same_screen: bool
+    },
+    GetInputFocus {
+        wid: u32, // 0 = none, 1 = pointer root
+        revert_to: InputFocusRevert
+    },
+    QueryKeymap {
+        keys: Vec<char>
+    },
+    QueryFont {
+        // TODO
+    },
+    QueryTextExtents {
+        font_ascent: i16,
+        font_descent: i16,
+        overall_ascent: i16,
+        overall_descent: i16,
+        overall_width: i32,
+        overall_left: i32,
+        overall_right: i32,
+        draw_direction: FontDrawDirection
+    },
+    ListFonts {
+        names: Vec<String>
+    },
+    ListFontsWithInfoEntry { // Ended by ListFontsWithInfoEnd
         min_bounds: CharInfo,
         max_bounds: CharInfo,
         min_char: u16,
@@ -190,8 +267,106 @@ pub enum ServerReply {
         properties: Vec<FontProperty>,
         name: String
     },
-    ListFontsWithInfoEnd // End marker for ListFontsWithInfoEntry
-    // TODO: The rest
+    ListFontsWithInfoEnd, // End marker for ListFontsWithInfoEntry
+    GetFontPath {
+        path: Vec<String>
+    },
+    GetImage {
+        visual: u32, // 0 = none
+        depth: u8,
+        data: Vec<u8>
+    },
+    ListInstalledColormaps {
+        cmids: Vec<u32>
+    },
+    AllocColor {
+        pixel: u32,
+        red: u16,
+        green: u16,
+        blue: u16
+    },
+    AllocNamedColor {
+        pixel: u32,
+        exact_red: u16,
+        exact_green: u16,
+        exact_blue: u16,
+        visual_red: u16,
+        visual_green: u16,
+        visual_blue: u16
+    },
+    AllocColorCells {
+        pixels: Vec<u32>,
+        masks: Vec<u32>
+    },
+    AllocColorPlanes {
+        pixels: Vec<u32>,
+        red_mask: u32,
+        green_mask: u32,
+        blue_mask: u32
+    },
+    QueryColors {
+        colors: Vec<Color>
+    },
+    LookupColor {
+        exact_red: u16,
+        exact_green: u16,
+        exact_blue: u16,
+        visual_red: u16,
+        visual_green: u16,
+        visual_blue: u16
+    },
+    QueryBestSize {
+        width: u16,
+        height: u16
+    },
+    QueryExtension {
+        present: bool,
+        major_opcode: u8,
+        first_event: u8,
+        first_error: u8
+    },
+    ListExtensions {
+        names: Vec<String>
+    },
+    GetKeyboardMapping {
+        // TODO
+    },
+    GetKeyboardControl {
+        global_auto_repeat: KeyboardControlAutoRepeatMode,
+        led_mask: u32,
+        key_click_percent: u8,
+        bell_percent: u8,
+        bell_pitch: u16,
+        bell_duration: u16,
+        auto_repeats: Vec<u8>
+    },
+    GetPointerControl {
+        acceleration_numerator: u16,
+        acceleration_denominator: u16,
+        threshold: u16
+    },
+    GetScreenSaver {
+        timeout: u16,
+        interval: u16,
+        prefer_blanking: bool,
+        allow_exposures: bool
+    },
+    ListHosts {
+        enabled: bool,
+        hosts: Vec<Host>
+    },
+    SetPointerMapping {
+        success: bool
+    },
+    GetPointerMapping {
+        map: Vec<u8>
+    },
+    SetModifierMapping {
+        status: SetModifierMappingStatus
+    },
+    GetModifierMapping {
+        key_codes: Vec<char>
+    }
 }
 
 #[derive(Debug)]
@@ -467,7 +642,7 @@ pub enum ServerResponse {
 //
 //
 ////////////////////////////////////////
-/// X COMMON TYPES
+/// X TYPES
 ////////////////////////////////////////
 //
 //
@@ -802,6 +977,26 @@ impl ColorItem {
         client.write_u8(mask);
         client.write_pad(1);
     }
+}
+
+#[derive(Debug)]
+pub struct TimeCoordinate {
+    pub time: u32,
+    pub x: i16,
+    pub y: i16
+}
+
+#[derive(Debug)]
+pub struct Color {
+    pub red: u16,
+    pub green: u16,
+    pub blue: u16
+}
+
+#[derive(Debug)]
+pub struct Host {
+    pub family: HostFamily,
+    pub address: Vec<u8>
 }
 
 //
@@ -2096,6 +2291,15 @@ impl KeyboardControlAutoRepeatMode {
             &KeyboardControlAutoRepeatMode::Default => 2
         }
     }
+
+    pub fn get(id: u8) -> Option<KeyboardControlAutoRepeatMode> {
+        match id {
+            0 => Some(KeyboardControlAutoRepeatMode::Off),
+            1 => Some(KeyboardControlAutoRepeatMode::On),
+            2 => Some(KeyboardControlAutoRepeatMode::Default),
+            _ => None
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -2118,14 +2322,29 @@ impl YesNoDefault {
 pub enum HostFamily {
     Internet,
     DECnet,
-    Chaos
+    Chaos,
+    ServerInterpreted,
+    InternetV6
 }
 impl HostFamily {
     pub fn val(&self) -> u8 {
         match self {
             &HostFamily::Internet => 0,
             &HostFamily::DECnet => 1,
-            &HostFamily::Chaos => 2
+            &HostFamily::Chaos => 2,
+            &HostFamily::ServerInterpreted => 5,
+            &HostFamily::InternetV6 => 6,
+        }
+    }
+
+    pub fn get(id: u8) -> Option<HostFamily> {
+        match id {
+            0 => Some(HostFamily::Internet),
+            1 => Some(HostFamily::DECnet),
+            2 => Some(HostFamily::Chaos),
+            5 => Some(HostFamily::ServerInterpreted),
+            6 => Some(HostFamily::InternetV6),
+            _ => None
         }
     }
 }
@@ -2156,6 +2375,44 @@ impl CloseDownMode {
             &CloseDownMode::Destroy => 0,
             &CloseDownMode::RetainPermanent => 1,
             &CloseDownMode::RetainTemporary => 2
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum GrabStatus {
+    Success,
+    AlreadyGrabbed,
+    InvalidTime,
+    NotViewable,
+    Frozen
+}
+impl GrabStatus {
+    pub fn get(id: u8) -> Option<GrabStatus> {
+        match id {
+            0 => Some(GrabStatus::Success),
+            1 => Some(GrabStatus::AlreadyGrabbed),
+            2 => Some(GrabStatus::InvalidTime),
+            3 => Some(GrabStatus::NotViewable),
+            4 => Some(GrabStatus::Frozen),
+            _ => None
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum SetModifierMappingStatus {
+    Success,
+    Busy,
+    Failed
+}
+impl SetModifierMappingStatus {
+    pub fn get(id: u8) -> Option<SetModifierMappingStatus> {
+        match id {
+            0 => Some(SetModifierMappingStatus::Success),
+            1 => Some(SetModifierMappingStatus::Busy),
+            2 => Some(SetModifierMappingStatus::Failed),
+            _ => None
         }
     }
 }

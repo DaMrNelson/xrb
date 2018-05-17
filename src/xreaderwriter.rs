@@ -42,10 +42,12 @@ pub trait XBufferedReader {
     fn read_u8(&mut self) -> u8;
     fn read_i16(&mut self) -> i16;
     fn read_u16(&mut self) -> u16;
+    fn read_i32(&mut self) -> i32;
     fn read_u32(&mut self) -> u32;
     fn read_char(&mut self) -> char;
     fn read_str(&mut self, len: usize) -> String;
     fn read_raw(&mut self, len: usize) -> Vec<u8>;
+    fn read_raw_buf(&mut self, buf: &mut [u8]);
 }
 
 /**
@@ -104,9 +106,21 @@ impl XReadHelper {
         }
     }
 
+    /** Reads character info */
+    fn read_char_info(&mut self) -> CharInfo {
+        return CharInfo {
+            left_side_bearing: self.read_i16(),
+            right_side_bearingL: self.read_i16(),
+            character_width: self.read_i16(),
+            ascent: self.read_i16(),
+            descent: self.read_i16(),
+            attributes: self.read_u16()
+        }
+    }
+
     /** Reads a reply to GetWindowAttributes */
-    pub fn read_get_window_attributes_reply(&mut self, backing_store_pre: u8) -> Option<ServerReply> {
-        let backing_store = match WindowBackingStore::get(backing_store_pre) {
+    pub fn read_get_window_attributes_reply(&mut self, backing_store: u8) -> Option<ServerReply> {
+        let backing_store = match WindowBackingStore::get(backing_store) {
             Some(x) => x,
             None => return None
         };
@@ -140,16 +154,202 @@ impl XReadHelper {
         Some(ServerReply::GetWindowAttributes { backing_store, visual, class, bit_gravity, window_gravity, backing_planes, backing_pixel, save_under, map_is_installed, map_state, override_redirect, colormap, all_event_masks, your_event_mask, do_not_propagate_mask })
     }
 
-    /** Reads character info */
-    fn read_char_info(&mut self) -> CharInfo {
-        return CharInfo {
-            left_side_bearing: self.read_i16(),
-            right_side_bearingL: self.read_i16(),
-            character_width: self.read_i16(),
-            ascent: self.read_i16(),
-            descent: self.read_i16(),
-            attributes: self.read_u16()
+    /** Reads TODO */
+    pub fn read_get_geometry_reply(&mut self, depth: u8) -> Option<ServerReply> {
+        let root = self.read_u32();
+        let x = self.read_i16();
+        let y = self.read_i16();
+        let width = self.read_u16();
+        let height = self.read_u16();
+        let border_width = self.read_u16();
+        self.read_pad(10);
+        Some(ServerReply::GetGeometry { depth, root, x, y, width, height, border_width })
+    }
+
+    /** Reads TODO */
+    pub fn read_query_tree_reply(&mut self) -> Option<ServerReply> {
+        let root = self.read_u32();
+        let parent = self.read_u32();
+        let count = self.read_u16();
+        self.read_pad(14);
+        let mut wids = Vec::with_capacity(count as usize);
+        for _ in 0..count {
+            wids.push(self.read_u32());
         }
+        Some(ServerReply::QueryTree { root, parent, wids })
+    }
+    
+    /**
+     * Reads TODO
+     */
+    pub fn read_intern_atom_reply(&mut self) -> Option<ServerReply> {
+        let atom = self.read_u32();
+        self.read_pad(20);
+        Some(ServerReply::InternAtom { atom })
+    }
+
+    /** Reads TODO */
+    pub fn read_get_atom_name_reply(&mut self) -> Option<ServerReply> {
+        let len = self.read_u16();
+        self.read_pad(22);
+        let name = self.read_str(len as usize);
+        Some(ServerReply::GetAtomName { name })
+    }
+
+    /** Reads TODO */
+    pub fn read_get_property_reply(&mut self, format: u8) -> Option<ServerReply> {
+        let vtype = self.read_u32();
+        let bytes_after = self.read_u32();
+        let len = self.read_u32();
+        self.read_pad(12);
+        let len = match format {
+            0 => 0,
+            8 => len,
+            16 => len * 2,
+            32 => len * 4,
+            _ => return None
+        };
+        let value = self.read_raw((len - bytes_after) as usize); // I hope this is what bytes_after is for...
+        self.read_pad(bytes_after as usize);
+        Some(ServerReply::GetProperty { vtype, value })
+    }
+
+    /** Reads TODO */
+    pub fn read_list_properties_reply(&mut self) -> Option<ServerReply> {
+        let len = self.read_u16();
+        self.read_pad(22);
+        let mut atoms = Vec::with_capacity(len as usize);
+        for _ in 0..len {
+            atoms.push(self.read_u32());
+        }
+        Some(ServerReply::ListProperties { atoms })
+    }
+
+    /** Reads TODO */
+    pub fn read_get_selection_owner_reply(&mut self) -> Option<ServerReply> {
+        let wid = self.read_u32();
+        self.read_pad(20);
+        Some(ServerReply::GetSelectionOwner { wid })
+    }
+
+    /** Reads TODO */
+    pub fn read_grab_pointer_reply(&mut self, status: u8) -> Option<ServerReply> {
+        let status = match GrabStatus::get(status) {
+            Some(val) => val,
+            None => return None
+        };
+        self.read_pad(24);
+        Some(ServerReply::GrabPointer { status })
+    }
+    
+    /** Reads TODO */
+    pub fn read_grab_keyboard_reply(&mut self, status: u8) -> Option<ServerReply> {
+        let status = match GrabStatus::get(status) {
+            Some(val) => val,
+            None => return None
+        };
+        self.read_pad(24);
+        Some(ServerReply::GrabKeyboard { status })
+    }
+
+    /** Reads TODO */
+    pub fn read_query_pointer_reply(&mut self, same_screen: u8) -> Option<ServerReply> {
+        let same_screen = match same_screen {
+            0 => false,
+            1 => true,
+            _ => return None
+        };
+        let root = self.read_u32();
+        let child = self.read_u32();
+        let root_x = self.read_i16();
+        let root_y = self.read_i16();
+        let win_x = self.read_i16();
+        let win_y = self.read_i16();
+        let key_buttons = KeyButton::get(self.read_u16());
+        self.read_pad(6);
+        Some(ServerReply::QueryPointer { root, child, root_x, root_y, win_x, win_y, key_buttons, same_screen })
+    }
+
+    /** Reads TODO */
+    pub fn read_get_motion_events_reply(&mut self) -> Option<ServerReply> {
+        let count = self.read_u32();
+        self.read_pad(20);
+        let mut events = Vec::with_capacity(count as usize);
+        for _ in 0..count {
+            let time = self.read_u32();
+            let x = self.read_i16();
+            let y = self.read_i16();
+            events.push(TimeCoordinate { time, x, y });
+        }
+        Some(ServerReply::GetMotionEvents { events })
+    }
+
+    /** Reads TODO */
+    pub fn read_translate_coordinates_reply(&mut self, same_screen: u8) -> Option<ServerReply> {
+        let same_screen = match same_screen {
+            0 => false,
+            1 => true,
+            _ => return None
+        };
+        let child = self.read_u32();
+        let dst_x = self.read_i16();
+        let dst_y = self.read_i16();
+        self.read_pad(16);
+        Some(ServerReply::TranslateCoordinates { child, dst_x, dst_y, same_screen })
+    }
+
+    /** Reads TODO */
+    pub fn read_get_input_focus_reply(&mut self, revert_to: u8) -> Option<ServerReply> {
+        let revert_to = match InputFocusRevert::get(revert_to) {
+            Some(val) => val,
+            None => return None
+        };
+        let wid = self.read_u32();
+        self.read_pad(20);
+        Some(ServerReply::GetInputFocus { wid, revert_to })
+    }
+
+    /** Reads TODO */
+    pub fn read_query_keymap_reply(&mut self) -> Option<ServerReply> {
+        let mut keys = Vec::with_capacity(32);
+        for _ in 0..32 {
+            keys.push(self.read_u8() as char);
+        }
+        Some(ServerReply::QueryKeymap { keys })
+    }
+
+    /** Reads TODO */
+    pub fn read_query_font_reply(&mut self) -> Option<ServerReply> {
+        panic!("TODO: QueryFont reply");
+    }
+
+    /** Reads TODO */
+    pub fn read_query_text_extents_reply(&mut self, draw_direction: u8) -> Option<ServerReply> {
+        let draw_direction = match FontDrawDirection::get(draw_direction) {
+            Some(val) => val,
+            None => return None
+        };
+        let font_ascent = self.read_i16();
+        let font_descent = self.read_i16();
+        let overall_ascent = self.read_i16();
+        let overall_descent = self.read_i16();
+        let overall_width = self.read_i32();
+        let overall_left = self.read_i32();
+        let overall_right = self.read_i32();
+        self.read_pad(4);
+        Some(ServerReply::QueryTextExtents { draw_direction, font_ascent, font_descent, overall_ascent, overall_descent, overall_width, overall_left, overall_right })
+    }
+
+    /** Reads TODO */
+    pub fn read_list_fonts_reply(&mut self) -> Option<ServerReply> {
+        let count = self.read_u16();
+        self.read_pad(22);
+        let mut names = Vec::with_capacity(count as usize);
+        for _ in 0..count {
+            let len = self.read_u8();
+            names.push(self.read_str(len as usize));
+        }
+        Some(ServerReply::ListFonts { names })
     }
 
     /** Reads a single reply to ListFontsWithInfo (may have multiple) */
@@ -194,6 +394,258 @@ impl XReadHelper {
 
             Some(ServerReply::ListFontsWithInfoEntry { min_bounds, max_bounds, min_char, max_char, default_char, draw_direction, min_byte, max_byte, all_chars_exist, font_ascent, font_descent, replies_hint, properties, name })
         }
+    }
+
+    /** Reads TODO */
+    pub fn read_get_font_path_reply(&mut self) -> Option<ServerReply> {
+        let count = self.read_u16();
+        self.read_pad(22);
+        let mut path = Vec::with_capacity(count as usize);
+        for _ in 0..count {
+            let len = self.read_u8();
+            path.push(self.read_str(len as usize));
+        }
+        Some(ServerReply::GetFontPath { path })
+    }
+
+    /** Reads TODO */
+    pub fn read_get_image_reply(&mut self, depth: u8) -> Option<ServerReply> {
+        panic!("TODO: GetImage reply");
+    }
+
+    /** Reads TODO */
+    pub fn read_list_installed_colormaps_reply(&mut self) -> Option<ServerReply> {
+        let count = self.read_u16();
+        self.read_pad(22);
+        let mut cmids = Vec::with_capacity(count as usize);
+        for _ in 0..count {
+            cmids.push(self.read_u32());
+        }
+        Some(ServerReply::ListInstalledColormaps { cmids })
+    }
+
+    /** Reads TODO */
+    pub fn read_alloc_color_reply(&mut self) -> Option<ServerReply> {
+        let red = self.read_u16();
+        let green = self.read_u16();
+        let blue = self.read_u16();
+        self.read_pad(2);
+        let pixel = self.read_u32();
+        self.read_pad(12);
+        Some(ServerReply::AllocColor { red, green, blue, pixel })
+    }
+
+    /** Reads TODO */
+    pub fn read_alloc_named_color_reply(&mut self) -> Option<ServerReply> {
+        let pixel = self.read_u32();
+        let exact_red = self.read_u16();
+        let exact_green = self.read_u16();
+        let exact_blue = self.read_u16();
+        let visual_red = self.read_u16();
+        let visual_green = self.read_u16();
+        let visual_blue = self.read_u16();
+        self.read_pad(8);
+        Some(ServerReply::AllocNamedColor { pixel, exact_red, exact_green, exact_blue, visual_red, visual_green, visual_blue })
+    }
+
+    /** Reads TODO */
+    pub fn read_alloc_color_cells_reply(&mut self) -> Option<ServerReply> {
+        let pcount = self.read_u16();
+        let mcount = self.read_u16();
+        let mut pixels = Vec::with_capacity(pcount as usize);
+        let mut masks = Vec::with_capacity(mcount as usize);
+        self.read_pad(20);
+        for _ in 0..pcount {
+            pixels.push(self.read_u32());
+        }
+        for _ in 0..mcount {
+            masks.push(self.read_u32());
+        }
+        Some(ServerReply::AllocColorCells { pixels, masks })
+    }
+
+    /** Reads TODO */
+    pub fn read_alloc_color_planes_reply(&mut self) -> Option<ServerReply> {
+        let count = self.read_u16();
+        self.read_pad(2);
+        let red_mask = self.read_u32();
+        let green_mask = self.read_u32();
+        let blue_mask = self.read_u32();
+        self.read_pad(8);
+        let mut pixels = Vec::with_capacity(count as usize);
+        for _ in 0..count {
+            pixels.push(self.read_u32());
+        }
+        Some(ServerReply::AllocColorPlanes { pixels, red_mask, green_mask, blue_mask })
+    }
+
+    /** Reads TODO */
+    pub fn read_query_colors_reply(&mut self) -> Option<ServerReply> {
+        let count = self.read_u16();
+        self.read_pad(22);
+        let mut colors = Vec::with_capacity(count as usize);
+        for _ in 0..count {
+            let red = self.read_u16();
+            let green = self.read_u16();
+            let blue = self.read_u16();
+            self.read_pad(2);
+            colors.push(Color { red, green, blue });
+        }
+        Some(ServerReply::QueryColors { colors })
+    }
+
+    /** Reads TODO */
+    pub fn read_lookup_color_reply(&mut self) -> Option<ServerReply> {
+        let exact_red = self.read_u16();
+        let exact_green = self.read_u16();
+        let exact_blue = self.read_u16();
+        let visual_red = self.read_u16();
+        let visual_green = self.read_u16();
+        let visual_blue = self.read_u16();
+        self.read_pad(12);
+        Some(ServerReply::LookupColor { exact_red, exact_green, exact_blue, visual_red, visual_green, visual_blue })
+    }
+
+    /** Reads TODO */
+    pub fn read_query_best_size_reply(&mut self) -> Option<ServerReply> {
+        let width = self.read_u16();
+        let height = self.read_u16();
+        self.read_pad(20);
+        Some(ServerReply::QueryBestSize { width, height })
+    }
+
+    /** Reads TODO */
+    pub fn read_query_extension_reply(&mut self) -> Option<ServerReply> {
+        let present = self.read_bool();;
+        let major_opcode = self.read_u8();
+        let first_event = self.read_u8();
+        let first_error = self.read_u8();
+        self.read_pad(20);
+        Some(ServerReply::QueryExtension { present, major_opcode, first_event, first_error })
+    }
+
+    /** Reads TODO */
+    pub fn read_list_extensions_reply(&mut self, len: u8) -> Option<ServerReply> {
+        self.read_pad(24);
+        let mut names = Vec::with_capacity(len as usize);
+        for _ in 0..len {
+            let len = self.read_u8();
+            names.push(self.read_str(len as usize));
+        }
+        Some(ServerReply::ListExtensions { names })
+    }
+
+    /** Reads TODO */
+    pub fn read_get_keyboard_mapping_reply(&mut self, count: u8) -> Option<ServerReply> {
+        panic!("TODO: GetKeyboardMapping reply");
+    }
+
+    /** Reads TODO */
+    pub fn read_get_keyboard_control_reply(&mut self, global_auto_repeat: u8) -> Option<ServerReply> {
+        let global_auto_repeat = match KeyboardControlAutoRepeatMode::get(global_auto_repeat) {
+            Some(val) => val,
+            None => return None
+        };
+        let led_mask = self.read_u32();
+        let key_click_percent = self.read_u8();
+        let bell_percent = self.read_u8();
+        let bell_pitch = self.read_u16();
+        let bell_duration = self.read_u16();
+        self.read_pad(2);
+        let mut auto_repeats = Vec::with_capacity(32);
+        for _ in 0..32 {
+            auto_repeats.push(self.read_u8()); // TODO: Should this be an enum?
+        }
+        Some(ServerReply::GetKeyboardControl { global_auto_repeat, led_mask, key_click_percent, bell_percent, bell_pitch, bell_duration, auto_repeats })
+    }
+
+    /** Reads TODO */
+    pub fn read_get_pointer_control_reply(&mut self) -> Option<ServerReply> {
+        let acceleration_numerator = self.read_u16();
+        let acceleration_denominator = self.read_u16();
+        let threshold = self.read_u16();
+        self.read_pad(18);
+        Some(ServerReply::GetPointerControl { acceleration_numerator, acceleration_denominator, threshold })
+    }
+
+    /** Reads TODO */
+    pub fn read_get_screen_saver_reply(&mut self) -> Option<ServerReply> {
+        let timeout = self.read_u16();
+        let interval = self.read_u16();
+        let prefer_blanking = match self.read_u8() {
+            0 => false,
+            1 => true,
+            _ => return None
+        };
+        let allow_exposures = match self.read_u8() {
+            0 => false,
+            1 => true,
+            _ => return None
+        };
+        self.read_pad(18);
+        Some(ServerReply::GetScreenSaver { timeout, interval, prefer_blanking, allow_exposures })
+    }
+
+    /** Reads TODO */
+    pub fn read_list_hosts_reply(&mut self, mode: u8) -> Option<ServerReply> {
+        let enabled = match mode {
+            0 => false,
+            1 => true,
+            _ => return None
+        };
+        let count = self.read_u16();
+        self.read_pad(22);
+        let mut hosts = Vec::with_capacity(count as usize);
+        for _ in 0..count {
+            let family = match HostFamily::get(self.read_u8()) {
+                Some(val) => val,
+                None => return None
+            };
+            self.read_pad(1);
+            let len = self.read_u16();
+            let address = self.read_raw(len as usize);
+            hosts.push(Host { family, address });
+            self.read_pad((len % 4) as usize);
+        }
+        Some(ServerReply::ListHosts { enabled, hosts })
+    }
+
+    /** Reads TODO */
+    pub fn read_set_pointer_mapping_reply(&mut self, status: u8) -> Option<ServerReply> {
+        let success = match status {
+            0 => true,
+            1 => false,
+            _ => return None
+        };
+        self.read_pad(24);
+        Some(ServerReply::SetPointerMapping { success })
+    }
+
+    /** Reads TODO */
+    pub fn read_get_pointer_mapping_reply(&mut self, len: u8) -> Option<ServerReply> {
+        self.read_pad(24);
+        let map = self.read_raw(len as usize);
+        Some(ServerReply::GetPointerMapping { map })
+    }
+
+    /** Reads TODO */
+    pub fn read_set_modifier_mapping_reply(&mut self, status: u8) -> Option<ServerReply> {
+        let status = match SetModifierMappingStatus::get(status) {
+            Some(val) => val,
+            None => return None
+        };
+        self.read_pad(24);
+        Some(ServerReply::SetModifierMapping { status })
+    }
+
+    /** Reads TODO */
+    pub fn read_get_modifier_mapping_reply(&mut self, len: u8) -> Option<ServerReply> {
+        self.read_pad(24);
+        let mut key_codes = Vec::with_capacity((len * 8) as usize);
+        for _ in 0..len*8 {
+            key_codes.push(self.read_char());
+        }
+        Some(ServerReply::GetModifierMapping { key_codes })
     }
 }
 
@@ -649,9 +1101,13 @@ impl XBufferedReader for XReadHelper {
     }
 
     /**
-     * Reads X bytes and ignores them.
+     * Reads X bytes and ignores them. len may be zero.
      */
     fn read_pad(&mut self, len: usize) {
+        if self.pos + len > self.buf.len() {
+            panic!("Attempt to read out of buffer.");
+        }
+
         self.pos += len;
     }
 
@@ -696,6 +1152,14 @@ impl XBufferedReader for XReadHelper {
     }
 
     /**
+     * Reads an i32 from the buffer.
+     * Expects little endian.
+     */
+    fn read_i32(&mut self) -> i32 {
+        self.read_u32() as i32
+    }
+
+    /**
      * Reads a u32 from the buffer.
      * Expects little endian.
      */
@@ -733,5 +1197,16 @@ impl XBufferedReader for XReadHelper {
 
         self.pos += len;
         x
+    }
+
+    /**
+     * Reads raw bytes from the buffer into another.
+     */
+    fn read_raw_buf(&mut self, buf: &mut [u8]) {
+        for i in self.pos..self.pos + buf.len() {
+            buf[i - self.pos] = self.buf[i];
+        }
+
+        self.pos += buf.len();
     }
 }

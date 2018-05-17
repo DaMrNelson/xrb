@@ -11,6 +11,7 @@ import re
 
 reg_main_line = r"^([a-zA-Z0-9]+)$"
 reg_request_len = r"^     2\s+(\S+)\s+request length$"
+reg_reply_len = r"^     (\d+)\s+(\S+)\s+reply length$"
 reg_standard = r"^     (\d+)\s+([\w\d]+)\s+(\S.*)$"
 reg_unused = r"^     (\d+)\s+unused$" # Must be matched before enumerable
 reg_data = r"^     (\d+)\s+data$" # Must be matched before enumerable
@@ -18,11 +19,137 @@ reg_enumerable = r"^     (\d+)\s+(\S.*)$"
 reg_enum = r"^          (\d+)\s+[#\w]+$"
 
 def read(path):
-    pass # TODO: This
+    with open(path, "r") as f:
+        read = 0
+        head = None
+        old_head = None
+        in_response = False
+        param_names = []
+
+        for line in f:
+            while line.endswith("\n"):
+                line = line[:-1]
+            
+            if not line:
+                continue
+            
+            match = re.match(reg_main_line, line)
+            if match:
+                head = line
+                in_response = False
+                continue
+            
+            if line.startswith("▶"):
+                if not head:
+                    raise RuntimeError("Expected method name somewhere before response")
+
+                if old_head:
+                    print("Some(ServerReply::%s { %s })" % (old_head, ", ".join(param_names)))
+                del param_names[:]
+                old_head = head
+                read = 0
+
+                print()
+                print(head)
+                in_response = True
+                continue
+            
+            if not in_response:
+                continue
+
+            match = re.match(reg_reply_len, line)
+            if match:
+                num = int(match.group(1))
+
+                if num == 1:
+                    base = "read_u8"
+                    read += 1
+                elif num == 2:
+                    base = "read_u16"
+                    read += 2
+                elif num == 4:
+                    base = "read_u32"
+                    read += 4
+                else:
+                    print("//Could not parse length %d for %s" % (num, line))
+                    continue
+
+                if read > 8:
+                    print("self.prep_read_extend(self.%s() as usize * 4);" % base)
+                read += 2
+                continue
+            match = re.match(reg_standard, line)
+            if match:
+                num = int(match.group(1))
+                symbol = "i" if match.group(2) in ("INT8", "INT16", "INT32") else "u"
+                base = None
+
+                if num == 1:
+                    if match.group(2) == "BOOL":
+                        base = "self.read_bool();"
+                    else:
+                        base = "self.read_%s8()" % symbol
+                    read += 1
+                elif num == 2:
+                    base = "self.read_%s16()" % symbol
+                    read += 2
+                elif num == 4:
+                    base = "self.read_%s32()" % symbol
+                    read += 4
+                else:
+                    print("//Could not parse length %d for %s" % (num, line))
+                    continue
+
+                name = match.group(3).replace("-", "_").replace(" ", "_")
+                if read > 8:
+                    print("let %s = %s;" % (name, base))
+                    param_names.append(name)
+                continue
+            match = re.match(reg_unused, line)
+            if match:
+                if read > 8:
+                    print("self.read_pad(%d);" % int(match.group(1)))
+                read += int(match.group(1))
+                continue
+            match = re.match(reg_data, line)
+            if match:
+                if read > 8:
+                    print("let mut data = [0u8; %d];\nself.read_raw_buf(data_buf);" % int(match.group(1)))
+                    param_names.append("data")
+                read += int(match.group(1))
+                continue
+            match = re.match(reg_enumerable, line)
+            if match:
+                num = int(match.group(1))
+
+                if num == 1:
+                    base = "self.read_u8()"
+                    read += 1
+                elif num == 2:
+                    base = "self.read_u16()"
+                    read += 2
+                elif num == 4:
+                    base = "self.read_u32())"
+                    read += 4
+                else:
+                    print("//Could not parse length %d for %s" % (num, line))
+                    continue
+                
+                name = match.group(2).replace("-", "_").replace(" ", "_")
+                if read > 8:
+                    print("let %s = match ENUM.get(%s) {\n    Some(val) => val,\n    return None\n};" % (name, base))
+                    param_names.append(name)
+                continue
+            match = re.match(reg_enum, line)
+            if match:
+                # Do nothing when writing. Might need to do stuff while reading tho.
+                continue
+            
+            print("//Could not parse line %s" % line)
 
 def write(path, is_event):
     with open(path, "r") as f:
-        written = -1
+        written = 0
         pad = False
         in_response = False
 
@@ -118,7 +245,6 @@ def write(path, is_event):
                 continue
             
             print("//Could not parse line %s" % line)
-            last_type = -1
                 
 
 if __name__ == "__main__":
