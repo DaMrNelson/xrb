@@ -18,14 +18,12 @@ mod tests {
         
         let bgsize = 500;
         let ibgsize = bgsize as i16;
-        println!("Note: White is {}", client.connect_info.screens[0].white_pixel);
-        println!("Note: Black is {}", client.connect_info.screens[0].black_pixel);
 
         // Create a pixmap
         let pixmap = Pixmap {
-            depth: client.connect_info.screens[0].root_depth,
+            depth: client.info.screens[0].root_depth,
             pid: client.new_resource_id(),
-            drawable: client.connect_info.screens[0].root,
+            drawable: client.info.screens[0].root,
             width: bgsize,
             height: bgsize
         };
@@ -34,10 +32,10 @@ mod tests {
         // Create GC (graphics context)
         let mut gc = GraphicsContext {
             gcid: client.new_resource_id(),
-            drawable: client.connect_info.screens[0].root,
+            drawable: client.info.screens[0].root,
             values: vec![
-                GraphicsContextValue::Background(client.connect_info.screens[0].black_pixel),
-                GraphicsContextValue::Foreground(client.connect_info.screens[0].black_pixel)
+                GraphicsContextValue::Background(client.info.screens[0].black_pixel),
+                GraphicsContextValue::Foreground(client.info.screens[0].black_pixel)
             ]
         };
         client.create_gc(&gc);
@@ -46,7 +44,7 @@ mod tests {
         // Draw backgorund and some arcs
         pixmap.fill_rect(&mut client, gcid, Rectangle { x: 0, y: 0, width: bgsize, height: bgsize });
         //client.poly_fill_rectangle(pixmap.pid, gcid, &vec![Rectangle { x: 0, y: 0, width: bgsize, height: bgsize }]);
-        let white = client.connect_info.screens[0].white_pixel;
+        let white = client.info.screens[0].white_pixel;
         //client.change_gc(gc.gcid, &vec![GraphicsContextValue::Foreground(white)]);
         gc.set_fg(&mut client, &Color::from_num(0xFF0000));
         pixmap.draw_arcs(&mut client, gcid, &vec![
@@ -59,9 +57,9 @@ mod tests {
 
         // Create a window
         let mut window = Window {
-            depth: client.connect_info.screens[0].root_depth,
+            depth: client.info.screens[0].root_depth,
             wid: client.new_resource_id(),
-            parent: client.connect_info.screens[0].root,
+            parent: client.info.screens[0].root,
             x: 20,
             y: 200,
             width: 500,
@@ -85,7 +83,7 @@ mod tests {
 
         // Create a child window
         let child = Window {
-            depth: client.connect_info.screens[0].root_depth,
+            depth: client.info.screens[0].root_depth,
             wid: client.new_resource_id(),
             parent: window.wid,
             x: 20,
@@ -96,7 +94,7 @@ mod tests {
             class: WindowInputType::CopyFromParent,
             visual_id: 0, // CopyFromParent
             values: vec![
-                WindowValue::BackgroundPixel(client.connect_info.screens[0].white_pixel),
+                WindowValue::BackgroundPixel(0x00FF00),
                 WindowValue::Colormap(0)
             ]
         };

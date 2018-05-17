@@ -15,7 +15,7 @@ use self::xreaderwriter::{XBufferedWriter, XBufferedReader, XReadHelper};
 
 pub struct XClient {
     pub connected: bool,
-    pub connect_info: ConnectInfo,
+    pub info: ConnectInfo,
     buf_out: BufWriter<UnixStream>,
     resp_receiver: mpsc::Receiver<ServerResponse>, // Receive errors, replies, and events from the X Server
     resp_queue: VecDeque<ServerResponse>, // Used to store errors when the user wants to skip to a certain event or error
@@ -39,7 +39,7 @@ impl XClient {
         let (sq_sender, sq_receiver) = mpsc::channel();
         let mut client = XClient {
             connected: false,
-            connect_info: ConnectInfo::empty(),
+            info: ConnectInfo::empty(),
             buf_out: BufWriter::new(stream),
             resp_receiver: resp_receiver,
             resp_queue: VecDeque::with_capacity(15),
@@ -78,15 +78,15 @@ impl XClient {
         {
             // Read the head
             reader.prep_read(8);
-            self.connect_info.status_code = reader.read_u8();
+            self.info.status_code = reader.read_u8();
             reader.read_pad(1);
-            self.connect_info.protocol_major_version = reader.read_u16();
-            self.connect_info.protocol_minor_version = reader.read_u16();
-            self.connect_info.additional_data_len = reader.read_u16();
+            self.info.protocol_major_version = reader.read_u16();
+            self.info.protocol_minor_version = reader.read_u16();
+            self.info.additional_data_len = reader.read_u16();
 
             // Check if the connection was a success
             // TODO: Parse body of failures
-            match self.connect_info.status_code {
+            match self.info.status_code {
                 protocol::CONNECT_SUCCESS => (),
                 protocol::CONNECT_FAILED => panic!("Got CONNECT_FAILED"),
                 protocol::CONNECT_AUTHENTICATE => panic!("Got CONNECT_AUTHENTICATE"),
@@ -94,49 +94,49 @@ impl XClient {
             };
 
             // Parse success info
-            println!("Server Protocol: {}.{}", self.connect_info.protocol_major_version, self.connect_info.protocol_minor_version);
-            reader.prep_read((self.connect_info.additional_data_len * 4) as usize);
-            self.connect_info.release_number = reader.read_u32();
-            self.connect_info.resource_id_base = reader.read_u32();
-            self.connect_info.resource_id_mask = reader.read_u32();
-            self.connect_info.motion_buffer_size = reader.read_u32();
+            println!("Server Protocol: {}.{}", self.info.protocol_major_version, self.info.protocol_minor_version);
+            reader.prep_read((self.info.additional_data_len * 4) as usize);
+            self.info.release_number = reader.read_u32();
+            self.info.resource_id_base = reader.read_u32();
+            self.info.resource_id_mask = reader.read_u32();
+            self.info.motion_buffer_size = reader.read_u32();
             let vendor_length = reader.read_u16();
-            self.connect_info.max_request_length = reader.read_u16();
-            self.connect_info.num_screens = reader.read_u8();
-            self.connect_info.num_formats = reader.read_u8();
-            self.connect_info.image_byte_order = match reader.read_u8() {
+            self.info.max_request_length = reader.read_u16();
+            self.info.num_screens = reader.read_u8();
+            self.info.num_formats = reader.read_u8();
+            self.info.image_byte_order = match reader.read_u8() {
                 0 => ByteOrder::LSBFirst,
                 1 => ByteOrder::MSBFirst,
                 order => panic!("Unknown image byte order {}", order),
             };
-            self.connect_info.bitmap_format_bit_order = match reader.read_u8() {
+            self.info.bitmap_format_bit_order = match reader.read_u8() {
                 0 => BitOrder::LeastSignificant,
                 1 => BitOrder::MostSignificant,
                 order => panic!("Unknown bitmap format bit order {}", order)
             };
-            self.connect_info.bitmap_format_scanline_unit = reader.read_u8();
-            self.connect_info.bitmap_format_scanline_pad = reader.read_u8();
-            self.connect_info.min_keycode = reader.read_char();
-            self.connect_info.max_keycode = reader.read_char();
+            self.info.bitmap_format_scanline_unit = reader.read_u8();
+            self.info.bitmap_format_scanline_pad = reader.read_u8();
+            self.info.min_keycode = reader.read_char();
+            self.info.max_keycode = reader.read_char();
             reader.read_pad(4);
 
-            self.connect_info.vendor = reader.read_str(vendor_length as usize);
+            self.info.vendor = reader.read_str(vendor_length as usize);
             reader.read_pad((vendor_length as usize) % 4);
-            println!("Server Vendor: {}", self.connect_info.vendor);
+            println!("Server Vendor: {}", self.info.vendor);
 
             // Formats (8 bytes each)
-            for _ in 0..self.connect_info.num_formats {
+            for _ in 0..self.info.num_formats {
                 let mut format = Format::empty();
                 format.depth = reader.read_u8();
                 format.bits_per_pixel = reader.read_u8();
                 format.scanline_pad = reader.read_u8();
                 reader.read_pad(5);
 
-                self.connect_info.formats.push(format);
+                self.info.formats.push(format);
             }
 
             // Read screens (x bytes, where x is a multiple of 4)
-            for _ in 0..self.connect_info.num_screens {
+            for _ in 0..self.info.num_screens {
                 let mut screen = Screen::empty();
                 screen.root = reader.read_u32();
                 screen.default_colormap = reader.read_u32();
@@ -194,7 +194,7 @@ impl XClient {
                     screen.depths.push(depth);
                 }
 
-                self.connect_info.screens.push(screen);
+                self.info.screens.push(screen);
             }
         }
 
@@ -338,12 +338,12 @@ impl XClient {
 
         let id = self.next_resource_id;
 
-        if id > self.connect_info.resource_id_mask {
+        if id > self.info.resource_id_mask {
             panic!("Out of resource IDs."); // Hopefully won't happen once re-using resource IDs is done
         }
 
         self.next_resource_id += 1;
-        self.connect_info.resource_id_base | id
+        self.info.resource_id_base | id
     }
 
     /**
