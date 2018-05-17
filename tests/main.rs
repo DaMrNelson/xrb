@@ -11,12 +11,15 @@ mod tests {
         // Connect
         //let mut client = XClient::new(String::from("/tmp/.X11-unix/X1"));
         let mut client = XClient::connect(String::from("/tmp/.X11-unix/X9"));
-        let bgsize = 500;
-        let ibgsize = bgsize as i16;
 
         ///////////////////////////////////
         //// TESTING
         ///////////////////////////////////
+        
+        let bgsize = 500;
+        let ibgsize = bgsize as i16;
+        println!("Note: White is {}", client.connect_info.screens[0].white_pixel);
+        println!("Note: Black is {}", client.connect_info.screens[0].black_pixel);
 
         // Create a pixmap
         let pixmap = Pixmap {
@@ -45,7 +48,7 @@ mod tests {
         //client.poly_fill_rectangle(pixmap.pid, gcid, &vec![Rectangle { x: 0, y: 0, width: bgsize, height: bgsize }]);
         let white = client.connect_info.screens[0].white_pixel;
         //client.change_gc(gc.gcid, &vec![GraphicsContextValue::Foreground(white)]);
-        gc.set(&mut client, GraphicsContextValue::Foreground(white));
+        gc.set_fg(&mut client, &Color::from_num(0xFF0000));
         pixmap.draw_arcs(&mut client, gcid, &vec![
         //client.poly_arc(pixmap.pid, gcid, &vec![
             Arc { x: -ibgsize / 2, y: 0, width: bgsize, height: bgsize, angle1: 0, angle2: 360 * 64 },
