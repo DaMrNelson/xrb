@@ -26,8 +26,6 @@ See tests/main.rs for some example usage.
     - Responds with replies, errors, and events
 
 # TODO
-    - Replies (Crl+F "▶")
-        - NOTE: Even though I may "complete" all requests when done the above point, the replies may not be done. Check!
     - Map functions to objects (ie `window.destroy()` instead of `client.destroy_window(window.wid)`)
     - Async versions for functions with replies (ie query_font(...), font.query(...))
         - So they don't have to manually call wait_for_response(seq)
