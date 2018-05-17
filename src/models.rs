@@ -995,6 +995,26 @@ impl GraphicsContext {
 
         client.change_gc(self.gcid, &self.values);
     }
+
+    pub fn free(&self, client: &mut XClient) {
+        client.free_gc(self.gcid);
+    }
+
+    pub fn set_bg(&mut self, client: &mut XClient, color: &Color) {
+        self.set_bg_raw(client, color.num());
+    }
+
+    pub fn set_bg_raw(&mut self, client: &mut XClient, color: u32) {
+        self.set(client, GraphicsContextValue::Background(color))
+    }
+
+    pub fn set_fg(&mut self, client: &mut XClient, color: &Color) {
+        self.set_fg_raw(client, color.num());
+    }
+
+    pub fn set_fg_raw(&mut self, client: &mut XClient, color: u32) {
+        self.set(client, GraphicsContextValue::Foreground(color))
+    }
 }
 
 #[derive(Debug)]
@@ -1181,6 +1201,24 @@ pub struct Color {
     pub red: u16,
     pub green: u16,
     pub blue: u16
+}
+
+impl Color {
+    pub fn from_rgb(red: u16, green: u16, blue: u16) -> Color {
+        Color { red, green, blue }
+    }
+
+    pub fn from_num(num: u32) -> Color {
+        Color {
+            red: ((num & 0xFF0000) >> 16) as u16,
+            green: ((num & 0x00FF00) >> 8) as u16,
+            blue: (num & 0x0000FF) as u16
+        }
+    }
+
+    pub fn num(&self) -> u32 {
+        return ((self.red as u32) << 16) + ((self.green as u32) << 8) + (self.blue as u32)
+    }
 }
 
 #[derive(Debug)]
