@@ -210,7 +210,6 @@ impl XClient {
 
                     let response = match opcode {
                         protocol::REPLY_ERROR => {
-                            sq_receiver.recv().unwrap(); // Throw out expected reply type
                             match reader.read_error(detail) {
                                 Some(err) => ServerResponse::Error(err, sequence_number),
                                 None => continue
@@ -271,8 +270,7 @@ impl XClient {
                                     None => continue
                                 }
                             } else {
-                                eprintln!("Unexpected reply sequence. Expected {}, got {}. Will not attempt to parse.", sequence_number, seq);
-                                eprintln!("If this occurs again after restarting the server please submit an issue to: https://github.com/DaMrNelson/xrb");
+                                // This is expected, as errors do not consume from the type queue
                                 reader.read_pad((32 - 4 + reply_length * 4) as usize);
                                 continue
                             }
@@ -420,22 +418,21 @@ impl XClient {
             let mut val = None;
 
             match self.resp_receiver.recv() {
-                Ok(res) => match res {
+                Ok(res) => {
+                    match res {
                         ServerResponse::Error(_, eseq) => {
-                        println!("Trying to match. Expect {}, got {}", seq, eseq);
-                        if eseq == seq {
-                            matched = true;
-                            val = Some(res);
-                        }
-                    },
-                    ServerResponse::Reply(_, eseq) => {
-                        println!("Trying to match. Expect {}, got {}", seq, eseq);
-                        if eseq == seq {
-                            matched = true;
-                            val = Some(res);
-                        }
-                    },
-                    _ => val = Some(res),
+                            if eseq == seq {
+                                matched = true;
+                            }
+                        },
+                        ServerResponse::Reply(_, eseq) => {
+                            if eseq == seq {
+                                matched = true;
+                            }
+                        },
+                        _ => ()
+                    };
+                    val = Some(res);
                 },
                 Err(e) => eprintln!("Failed to get message from the receiver. Will try again. Error: {:?}", e)
             };
@@ -445,7 +442,7 @@ impl XClient {
                     if matched {
                         return res;
                     } else {
-                    self.resp_queue.push_back(res);
+                        self.resp_queue.push_back(res);
                     }
                 },
                 None => ()
@@ -454,7 +451,7 @@ impl XClient {
     }
 }
 
-// Endpoints
+// Spec Endpoints
 impl XClient { // This is actually a pretty nice feature for organization
     /** Tells the X Server to create a window */
     pub fn create_window(&mut self, window: &Window) {
@@ -2494,7 +2491,7 @@ impl XBufferedWriter for XClient {
      * Writes raw data.
      */
     fn write_raw(&mut self, buf: &[u8]) {
-        self.buf_out.write_all(buf);
+        self.buf_out.write_all(buf).unwrap();
     }
 
     /**

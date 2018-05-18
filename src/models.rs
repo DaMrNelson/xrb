@@ -631,6 +631,7 @@ pub enum ServerEvent {
     }
 }
 
+#[derive(Debug)]
 pub enum ServerResponse {
     Error(ServerError, u16),
     Reply(ServerReply, u16),
@@ -787,6 +788,7 @@ pub trait Drawable {
      */
     fn get_image(&self, client: &mut XClient, x: i16, y: i16, width: u16, height: u16, plane_mask: u32, format: &ImageFormat) -> u16 {
         client.get_image(self.get_drawable(), x, y, width, height, plane_mask, format)
+        // TODO: Sync get_image
     }
 
     /**
@@ -840,6 +842,15 @@ pub trait Drawable {
     fn image_text16(&self, client: &mut XClient, gcid: u32, text: &Vec<u16>, x: i16, y: i16) {
         client.image_text16(self.get_drawable(), gcid, text, x, y)
     }
+
+    /**
+     * Tells the X server to [TODO]
+     * `text` must have 255 or less elements
+     */
+    fn get_geometry(&self, client: &mut XClient) -> u16 {
+        client.get_geometry(self.get_drawable())
+        // TODO: sync get_gemometry
+    }
 }
 
 #[derive(Debug)]
@@ -858,6 +869,62 @@ pub struct Window {
 }
 
 impl Window {
+    /**
+     * Gets a window and its information from the server.
+     * This function will block until the X server replies.
+     */
+    pub fn get_sync(client: &mut XClient, wid: u32) -> Result<Window, ServerError> {
+        let seq1 = client.get_geometry(wid);
+        let seq2 = client.get_window_attributes(wid);
+        let (depth, root, x, y, width, height, border_width) = match client.wait_for_response(seq1) {
+            ServerResponse::Error(err, _) => return Err(err),
+            ServerResponse::Reply(reply, _) => match reply {
+                ServerReply::GetGeometry { depth, root, x, y, width, height, border_width }
+                    => (depth, root, x, y, width, height, border_width),
+                _ => unreachable!()
+            },
+            _ => unreachable!()
+        };
+        let (backing_store, visual, class, bit_gravity, window_gravity, backing_planes, backing_pixel, save_under, map_is_installed, map_state, override_redirect, colormap, all_event_masks, your_event_mask, do_not_propagate_mask) = match client.wait_for_response(seq2) {
+            ServerResponse::Error(err, _) => return Err(err),
+            ServerResponse::Reply(reply, _) => match reply {
+                ServerReply::GetWindowAttributes { backing_store, visual, class, bit_gravity, window_gravity, backing_planes, backing_pixel, save_under, map_is_installed, map_state, override_redirect, colormap, all_event_masks, your_event_mask, do_not_propagate_mask }
+                    => (backing_store, visual, class, bit_gravity, window_gravity, backing_planes, backing_pixel, save_under, map_is_installed, map_state, override_redirect, colormap, all_event_masks, your_event_mask, do_not_propagate_mask),
+                _ => unreachable!()
+            },
+            _ => unreachable!()
+        };
+        Ok(Window {
+            depth,
+            wid,
+            parent: root,
+            x,
+            y,
+            width,
+            height,
+            border_width,
+            class,
+            visual_id: visual,
+            values: vec![
+                //WindowValue::BackgroundPixmap(0), // TODO: Get this
+                //WindowValue::BackgroundPixel(0), // TODO: Get this
+                //WindowValue::BorderPixmap(0), // TODO: Get this
+                //WindowValue::BorderPixel(0), // TODO: Get this
+                WindowValue::BitGravity(bit_gravity),
+                WindowValue::WinGravity(window_gravity),
+                WindowValue::BackingStore(backing_store),
+                WindowValue::BackingPlanes(backing_planes),
+                WindowValue::BackingPixel(backing_pixel),
+                WindowValue::OverrideRedirect(override_redirect),
+                WindowValue::SaveUnder(save_under),
+                WindowValue::EventMask(your_event_mask),
+                WindowValue::DoNotPropagateMask(do_not_propagate_mask as u32),
+                WindowValue::Colormap(colormap),
+                //WindowValue::Cursor(0) // TODO: Get this
+            ]
+        })
+    }
+
     pub fn change(&mut self, client: &mut XClient, values: Vec<WindowValue>) {
         self.values = values;
         client.change_window_attributes(self.wid, &self.values);
