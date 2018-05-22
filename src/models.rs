@@ -949,6 +949,15 @@ impl Window {
 
         client.change_window_attributes(self.wid, &self.values);
     }
+
+    pub fn reparent(&mut self, client: &mut XClient, parent: u32, x: i16, y: i16) {
+        self.parent = parent;
+        client.reparent_window(self.wid, parent, x, y);
+    }
+
+    pub fn map(&self, client: &mut XClient) {
+        client.map_window(self.wid);
+    }
 }
 
 impl Drawable for Window {
@@ -1306,7 +1315,7 @@ pub struct Host {
 //
 //
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum BitOrder {
     LeastSignificant,
     MostSignificant
@@ -1320,10 +1329,10 @@ impl BitOrder {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum ByteOrder {
-    LSBFirst = 0,
-    MSBFirst = 1
+    LSBFirst,
+    MSBFirst
 }
 impl ByteOrder {
     pub fn val(&self) -> u32 {
@@ -1334,7 +1343,7 @@ impl ByteOrder {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum Event {
     KeyPress,
     KeyRelease,
@@ -1394,7 +1403,7 @@ impl Event {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum PointerEvent {
     ButtonPress,
     ButtonRelease,
@@ -1430,7 +1439,7 @@ impl PointerEvent {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum DeviceEvent {
     KeyPress,
     KeyRelease,
@@ -1462,7 +1471,7 @@ impl DeviceEvent {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum KeyButton {
     Shift,
     Lock,
@@ -1544,7 +1553,7 @@ impl KeyButton {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum Key {
     Shift,
     Lock,
@@ -1601,7 +1610,7 @@ impl Key {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum ScreenBackingStores {
     Never,
     WhenMapped,
@@ -1617,7 +1626,7 @@ impl ScreenBackingStores {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum VisualType {
     StaticGray,
     GrayScale,
@@ -1639,7 +1648,7 @@ impl VisualType {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum WindowInputType {
     CopyFromParent,
     InputOutput,
@@ -1664,7 +1673,7 @@ impl WindowInputType {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum WindowBackingStore {
     NotUseful,
     WhenMapped,
@@ -1689,7 +1698,7 @@ impl WindowBackingStore {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum BitGravity {
 	Forget,
 	Static,
@@ -1738,7 +1747,7 @@ impl BitGravity {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum WindowGravity {
 	Unmap,
 	Static,
@@ -1787,7 +1796,7 @@ impl WindowGravity {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum MapState {
     Unmapped,
     Unviewable,
@@ -1804,7 +1813,7 @@ impl MapState {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum FontDrawDirection {
     LeftToRight,
     RightToLeft
@@ -1819,7 +1828,7 @@ impl FontDrawDirection {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum GCFunction {
 	Clear,
 	And,
@@ -1861,7 +1870,7 @@ impl GCFunction {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum GCLineStyle {
 	Solid,
 	OnOffDash,
@@ -1877,7 +1886,7 @@ impl GCLineStyle {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum GCCapStyle {
 	NotLast,
 	Butt,
@@ -1895,7 +1904,7 @@ impl GCCapStyle {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum GCJoinStyle {
 	Miter,
 	Round,
@@ -1911,7 +1920,7 @@ impl GCJoinStyle {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum GCFillStyle {
 	Solid,
 	Tiled,
@@ -1929,7 +1938,7 @@ impl GCFillStyle {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum GCFillRule {
 	EvenOdd,
 	Winding
@@ -1943,10 +1952,10 @@ impl GCFillRule {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum GCSubWindowMode {
-	ClipByChildren = 0,
-	IncludeInferiors = 1
+	ClipByChildren,
+	IncludeInferiors
 }
 impl GCSubWindowMode {
     pub fn val(&self) -> u32 {
@@ -1957,7 +1966,7 @@ impl GCSubWindowMode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum GCArcMode {
 	Chord,
 	PieSlice
@@ -1971,7 +1980,7 @@ impl GCArcMode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum MotionNotifyType {
     Normal,
     Hint
@@ -1993,7 +2002,7 @@ impl MotionNotifyType {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum NotifyType {
     Ancestor,
     Virtual,
@@ -2024,7 +2033,7 @@ impl NotifyType {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum FocusType {
     Ancestor,
     Virtual,
@@ -2064,7 +2073,7 @@ impl FocusType {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum FocusMode {
     Normal,
     Grab,
@@ -2092,7 +2101,7 @@ impl FocusMode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum InputFocusRevert {
     None,
     PointerRoot,
@@ -2117,7 +2126,7 @@ impl InputFocusRevert {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum NotifyMode {
     Normal,
     Grab,
@@ -2142,7 +2151,7 @@ impl NotifyMode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum VisibilityState {
     Unobscured,
     PartiallyObscured,
@@ -2167,7 +2176,7 @@ impl VisibilityState {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum StackMode {
     Above,
     Below,
@@ -2198,7 +2207,7 @@ impl StackMode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum ConfigureRequestValues {
     X,
     Y,
@@ -2250,7 +2259,7 @@ impl ConfigureRequestValues {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum CirculatePlace {
     Top,
     Bottom
@@ -2272,7 +2281,7 @@ impl CirculatePlace {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum PropertyState {
     NewValue,
     Deleted
@@ -2294,7 +2303,7 @@ impl PropertyState {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum ColormapState {
     Uninstalled,
     Installed
@@ -2316,7 +2325,7 @@ impl ColormapState {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum MappingType {
     Modifier,
     Keyboard,
@@ -2341,6 +2350,7 @@ impl MappingType {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
 pub enum SaveSetMode {
     Insert,
     Delete
@@ -2354,6 +2364,7 @@ impl SaveSetMode {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
 pub enum CirculateDirection {
     RaiseLowest,
     LowerHighest
@@ -2367,6 +2378,7 @@ impl CirculateDirection {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
 pub enum PropertyChangeMode {
     Replace,
     Prepend,
@@ -2382,6 +2394,7 @@ impl PropertyChangeMode {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
 pub enum PointerMode {
     Synchronous,
     Asynchronous
@@ -2395,6 +2408,7 @@ impl PointerMode {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
 pub enum KeyboardMode {
     Synchronous,
     Asynchronous
@@ -2408,7 +2422,7 @@ impl KeyboardMode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum GraphicsContextMask {
     Function,
     PlaneMask,
@@ -2464,7 +2478,7 @@ impl GraphicsContextMask {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum RectangleOrdering {
     UnSorted,
     YSorted,
@@ -2482,7 +2496,7 @@ impl RectangleOrdering {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum CoordinateMode {
     Origin,
     Previous
@@ -2496,7 +2510,7 @@ impl CoordinateMode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum PolyShape {
     Complex,
     Nonconvex,
@@ -2512,7 +2526,7 @@ impl PolyShape {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum ImageFormat {
     Bitmap,
     XYPixmap,
@@ -2528,7 +2542,7 @@ impl ImageFormat {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum AllocMode {
     None,
     All
@@ -2542,7 +2556,7 @@ impl AllocMode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum SizeClass {
     Cursor,
     Tile,
@@ -2558,7 +2572,7 @@ impl SizeClass {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum KeyboardControlLedMode {
     Off,
     On
@@ -2572,7 +2586,7 @@ impl KeyboardControlLedMode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum KeyboardControlAutoRepeatMode {
     Off,
     On,
@@ -2597,7 +2611,7 @@ impl KeyboardControlAutoRepeatMode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum YesNoDefault {
     No,
     Yes,
@@ -2613,7 +2627,7 @@ impl YesNoDefault {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum HostFamily {
     Internet,
     DECnet,
@@ -2644,7 +2658,7 @@ impl HostFamily {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum ChangeHostMode {
     Insert,
     Delete
@@ -2658,7 +2672,7 @@ impl ChangeHostMode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum CloseDownMode {
     Destroy,
     RetainPermanent,
@@ -2674,7 +2688,7 @@ impl CloseDownMode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum GrabStatus {
     Success,
     AlreadyGrabbed,
@@ -2695,7 +2709,7 @@ impl GrabStatus {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum SetModifierMappingStatus {
     Success,
     Busy,
