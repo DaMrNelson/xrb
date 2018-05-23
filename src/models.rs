@@ -879,6 +879,11 @@ impl Window {
         window
     }
 
+    /** Destroys this window */
+    pub fn destroy(&self, client: &mut XClient) {
+        client.destroy_window(self.wid);
+    }
+
     /**
      * Gets a window and its information from the server.
      * This function will block until the X server replies.
