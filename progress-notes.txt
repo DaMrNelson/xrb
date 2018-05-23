@@ -54,3 +54,5 @@ Note: This includes the progress notes for XRB and T4Lwm
         - Modify spec parser to read replies. Make the vast majority of replies (although not all of them)
     - Work on object mappings. Ie Drawable.arc(...), GraphicsContext.set(...), etc
     - Work on the actual window manager. Get the a window reparented with a red bar at the top, wohoo!!!!!
+        - This is super useful for debugging all my stuff and making useful bindings too, as I am getting it all to work well while making the manager
+        - Fixed the way I was doing padding. Was using modulo wrong, oops

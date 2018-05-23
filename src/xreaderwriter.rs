@@ -31,7 +31,7 @@ pub trait XBufferedWriter {
     fn write_val_i32(&mut self, input: i32);
     fn write_val_u32(&mut self, input: u32);
     fn write_val(&mut self, input: u32);
-    fn write_values<T: Value>(&mut self, values: &Vec<T>);
+    fn write_values<T: Value>(&mut self, values: &Vec<T>, mask_size: u8);
 }
 
 pub trait XBufferedReader {
@@ -202,14 +202,17 @@ impl XReadHelper {
         let bytes_after = self.read_u32();
         let len = self.read_u32();
         self.read_pad(12);
-        let len = match format {
+        let mut len = match format {
             0 => 0,
             8 => len,
             16 => len * 2,
             32 => len * 4,
             _ => return None
         };
-        let value = self.read_raw((len - bytes_after) as usize); // I hope this is what bytes_after is for...
+        if len == 0 {
+            len = bytes_after;
+        }
+        let value = self.read_raw(len as usize);
         self.read_pad(bytes_after as usize);
         Some(ServerReply::GetProperty { vtype, value })
     }

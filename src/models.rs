@@ -796,7 +796,7 @@ pub trait Drawable {
      * `texts` is TextItem8Text or TextItem8Font
      * A TextItem8Text entry in `texts` must be 254 or less characters
      */
-    fn text8<T: TextItem8>(&self, client: &mut XClient, gcid: u32, x: i16, y: i16, text: T) {
+    fn poly_text8<T: TextItem8>(&self, client: &mut XClient, gcid: u32, x: i16, y: i16, text: T) {
         client.poly_text8(self.get_drawable(), gcid, x, y, &vec![text])
     }
     
@@ -805,7 +805,7 @@ pub trait Drawable {
      * `texts` is TextItem8Text or TextItem8Font
      * A TextItem8Text entry in `texts` must be 254 or less characters
      */
-    fn text8s<T: TextItem8>(&self, client: &mut XClient, gcid: u32, x: i16, y: i16, texts: &Vec<T>) {
+    fn poly_text8s<T: TextItem8>(&self, client: &mut XClient, gcid: u32, x: i16, y: i16, texts: &Vec<T>) {
         client.poly_text8(self.get_drawable(), gcid, x, y, texts)
     }
 
@@ -814,7 +814,7 @@ pub trait Drawable {
      * `texts` is TextItem16Text or TextItem16Font
      * A TextItem16Text entry in `texts` must be 254 or less characters
      */
-    fn text16<T: TextItem16>(&self, client: &mut XClient, gcid: u32, x: i16, y: i16, text: T) {
+    fn poly_text16<T: TextItem16>(&self, client: &mut XClient, gcid: u32, x: i16, y: i16, text: T) {
         client.poly_text16(self.get_drawable(), gcid, x, y, &vec![text])
     }
 
@@ -823,7 +823,7 @@ pub trait Drawable {
      * `texts` is TextItem16Text or TextItem16Font
      * A TextItem16Text entry in `texts` must be 254 or less characters
      */
-    fn text16s<T: TextItem16>(&self, client: &mut XClient, gcid: u32, x: i16, y: i16, texts: &Vec<T>) {
+    fn poly_text16s<T: TextItem16>(&self, client: &mut XClient, gcid: u32, x: i16, y: i16, texts: &Vec<T>) {
         client.poly_text16(self.get_drawable(), gcid, x, y, texts)
     }
 
@@ -831,7 +831,7 @@ pub trait Drawable {
      * Tells the X Server to [TODO] 
      * `text` must be 255 or less characters
      */
-    fn image_text8(&self, client: &mut XClient, gcid: u32, text: &str, x: i16, y: i16) {
+    fn img_text8(&self, client: &mut XClient, gcid: u32, text: &str, x: i16, y: i16) {
         client.image_text8(self.get_drawable(), gcid, text, x, y)
     }
 
@@ -839,7 +839,7 @@ pub trait Drawable {
      * Tells the X Server to [TODO]
      * `text` must have 255 or less elements
      */
-    fn image_text16(&self, client: &mut XClient, gcid: u32, text: &Vec<u16>, x: i16, y: i16) {
+    fn img_text16(&self, client: &mut XClient, gcid: u32, text: &Vec<u16>, x: i16, y: i16) {
         client.image_text16(self.get_drawable(), gcid, text, x, y)
     }
 
@@ -869,6 +869,16 @@ pub struct Window {
 }
 
 impl Window {
+    /**
+     * Creates a new window. Also submits to the X Server.
+     */
+    pub fn create(client: &mut XClient, parent: u32, depth: u8, x: i16, y: i16, width: u16, height: u16, border_width: u16, class: WindowInputType, visual_id: u32, values: Vec<WindowValue>) -> Window {
+        let wid = client.new_resource_id();
+        let window = Window { depth, wid, parent, x, y, width, height, border_width, class, visual_id, values };
+        client.create_window(&window);
+        window
+    }
+
     /**
      * Gets a window and its information from the server.
      * This function will block until the X server replies.
@@ -950,13 +960,98 @@ impl Window {
         client.change_window_attributes(self.wid, &self.values);
     }
 
+    pub fn set_multiple(&mut self, client: &mut XClient, values: Vec<WindowValue>) {
+        for value in values {
+            let mut new_pos = self.values.len();
+
+            for (i, val) in self.values.iter().enumerate() {
+                if discriminant(val) == discriminant(&value) {
+                    new_pos = i;
+                    break;
+                }
+            }
+
+            if new_pos == self.values.len() {
+                self.values.push(value);
+            } else {
+                self.values.remove(new_pos);
+                self.values.insert(new_pos, value);
+            }
+        }
+
+        client.change_window_attributes(self.wid, &self.values);
+    }
+
+    pub fn configure(&mut self, client: &mut XClient, value: WindowConfigureValue) {
+        match &value {
+            WindowConfigureValue::X(val) => self.x = *val,
+            WindowConfigureValue::Y(val) => self.y = *val,
+            WindowConfigureValue::Width(val) => self.width = *val,
+            WindowConfigureValue::Height(val) => self.height = *val,
+            WindowConfigureValue::BorderWidth(val) => self.border_width = *val,
+            WindowConfigureValue::Sibling(val) => (),
+            WindowConfigureValue::StackMode(val) => ()
+        };
+
+        client.configure_window(self.wid, &vec![value]);
+    }
+
+    pub fn configure_multiple(&mut self, client: &mut XClient, values: Vec<WindowConfigureValue>) {
+        for value in &values {
+            match value {
+                WindowConfigureValue::X(val) => self.x = *val,
+                WindowConfigureValue::Y(val) => self.y = *val,
+                WindowConfigureValue::Width(val) => self.width = *val,
+                WindowConfigureValue::Height(val) => self.height = *val,
+                WindowConfigureValue::BorderWidth(val) => self.border_width = *val,
+                WindowConfigureValue::Sibling(val) => (),
+                WindowConfigureValue::StackMode(val) => ()
+            };
+        }
+
+        client.configure_window(self.wid, &values);
+    }
+
     pub fn reparent(&mut self, client: &mut XClient, parent: u32, x: i16, y: i16) {
         self.parent = parent;
         client.reparent_window(self.wid, parent, x, y);
     }
 
+    pub fn get_property_sync(&mut self, client: &mut XClient, property: u32, ptype: u32, delete: bool, long_offset: u32, long_length: u32) -> Result<(u32, Vec<u8>), ServerError> {
+        let seq = client.get_property(self.wid, property, ptype, delete, long_offset, long_length);
+        match client.wait_for_response(seq) {
+            ServerResponse::Error(err, _) => Err(err),
+            ServerResponse::Reply(reply, _) => match reply {
+                ServerReply::GetProperty { vtype, value }
+                    => Ok((vtype, value)),
+                _ => unreachable!()
+            },
+            _ => unreachable!()
+        }
+    }
+
+    pub fn get_string_sync(&mut self, client: &mut XClient, property: u32, max_len: u32) -> Option<String> {
+        match self.get_property_sync(client, property, DefaultAtom::String.val(), false, 0, max_len) {
+            Ok((vtype, value)) => {
+                if vtype != DefaultAtom::String.val() {
+                    None
+                } else {
+                    match String::from_utf8(value) {
+                        Ok(val) => Some(val),
+                        Err(_) => None
+                    }
+                }
+            },
+            Err(val) => None
+        }
+    }
+
     pub fn map(&self, client: &mut XClient) {
         client.map_window(self.wid);
+    }
+
+    pub fn unmap(&self, client: &mut XClient) {
+        client.unmap_window(self.wid);
     }
 }
 
@@ -1047,6 +1142,17 @@ pub struct GraphicsContext {
 }
 
 impl GraphicsContext {
+
+    /**
+     * Creates a new GraphicsContext. Also submits it to the X Server.
+     */
+    pub fn create(client: &mut XClient, drawable: u32, values: Vec<GraphicsContextValue>) -> GraphicsContext {
+        let gcid = client.new_resource_id();
+        let gc = GraphicsContext { gcid, drawable, values };
+        client.create_gc(&gc);
+        gc
+    }
+
     pub fn change(&mut self, client: &mut XClient, values: Vec<GraphicsContextValue>) {
         self.values = values;
         client.change_gc(self.gcid, &self.values);
@@ -1164,8 +1270,8 @@ pub trait TextItem8 {
 
 #[derive(Debug)]
 pub struct TextItem8Text {
-    delta: i8,
-    text: str
+    pub delta: i8,
+    pub text: String
 }
 impl TextItem8 for TextItem8Text {
     fn len(&self) -> usize {
@@ -2726,6 +2832,152 @@ impl SetModifierMappingStatus {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
+pub enum DefaultAtom {
+    Primary,
+    Secondary,
+    Arc,
+    Atom,
+    Bitmap,
+    Cardinal,
+    Colormap,
+    Cursor,
+    CutBuffer0,
+    CutBuffer1,
+    CutBuffer2,
+    CutBuffer3,
+    CutBuffer4,
+    CutBuffer5,
+    CutBuffer6,
+    CutBuffer7,
+    Drawable,
+    Font,
+    Integer,
+    Pixmap,
+    Point,
+    Rectangle,
+    ResourceManager,
+    RgbColorMap,
+    RgbBestMap,
+    RgbBlueMap,
+    RgbDefaultMap,
+    RgbGrayMap,
+    RgbGreenMap,
+    RgbRedMap,
+    String,
+    VisualId,
+    Window,
+    WmCommand,
+    WmHints,
+    WmClientMachine,
+    WmIconName,
+    WmIconSize,
+    WmName,
+    WmNormalHints,
+    WmSizeHints,
+    WmZoomHints,
+    MinSpace,
+    NormSpace,
+    MaxSpace,
+    EndSpace,
+    SuperscriptX,
+    SuperscriptY,
+    SubscriptX,
+    SubscriptY,
+    UnderlinePosition,
+    UnderlineThickness,
+    StrikeoutAscent,
+    StrikeoutDescent,
+    ItalicAngle,
+    XHeight,
+    QuadWidth,
+    Weight,
+    PointSize,
+    Resolution,
+    Copyright,
+    Notice,
+    FontName,
+    FamilyName,
+    FullName,
+    CapHeight,
+    WmClass,
+    WmTransientFor
+}
+impl DefaultAtom {
+    pub fn val(&self) -> u32 {
+        match self {
+            DefaultAtom::Primary => 1,
+            DefaultAtom::Secondary => 2,
+            DefaultAtom::Arc => 3,
+            DefaultAtom::Atom => 4,
+            DefaultAtom::Bitmap => 5,
+            DefaultAtom::Cardinal => 6,
+            DefaultAtom::Colormap => 7,
+            DefaultAtom::Cursor => 8,
+            DefaultAtom::CutBuffer0 => 9,
+            DefaultAtom::CutBuffer1 => 10,
+            DefaultAtom::CutBuffer2 => 11,
+            DefaultAtom::CutBuffer3 => 12,
+            DefaultAtom::CutBuffer4 => 13,
+            DefaultAtom::CutBuffer5 => 14,
+            DefaultAtom::CutBuffer6 => 15,
+            DefaultAtom::CutBuffer7 => 16,
+            DefaultAtom::Drawable => 17,
+            DefaultAtom::Font => 18,
+            DefaultAtom::Integer => 19,
+            DefaultAtom::Pixmap => 20,
+            DefaultAtom::Point => 21,
+            DefaultAtom::Rectangle => 22,
+            DefaultAtom::ResourceManager => 23,
+            DefaultAtom::RgbColorMap => 24,
+            DefaultAtom::RgbBestMap => 25,
+            DefaultAtom::RgbBlueMap => 26,
+            DefaultAtom::RgbDefaultMap => 27,
+            DefaultAtom::RgbGrayMap => 28,
+            DefaultAtom::RgbGreenMap => 29,
+            DefaultAtom::RgbRedMap => 30,
+            DefaultAtom::String => 31,
+            DefaultAtom::VisualId => 32,
+            DefaultAtom::Window => 33,
+            DefaultAtom::WmCommand => 34,
+            DefaultAtom::WmHints => 35,
+            DefaultAtom::WmClientMachine => 36,
+            DefaultAtom::WmIconName => 37,
+            DefaultAtom::WmIconSize => 38,
+            DefaultAtom::WmName => 39,
+            DefaultAtom::WmNormalHints => 40,
+            DefaultAtom::WmSizeHints => 41,
+            DefaultAtom::WmZoomHints => 42,
+            DefaultAtom::MinSpace => 43,
+            DefaultAtom::NormSpace => 44,
+            DefaultAtom::MaxSpace => 45,
+            DefaultAtom::EndSpace => 46,
+            DefaultAtom::SuperscriptX => 47,
+            DefaultAtom::SuperscriptY => 48,
+            DefaultAtom::SubscriptX => 49,
+            DefaultAtom::SubscriptY => 50,
+            DefaultAtom::UnderlinePosition => 51,
+            DefaultAtom::UnderlineThickness => 52,
+            DefaultAtom::StrikeoutAscent => 53,
+            DefaultAtom::StrikeoutDescent => 54,
+            DefaultAtom::ItalicAngle => 55,
+            DefaultAtom::XHeight => 56,
+            DefaultAtom::QuadWidth => 57,
+            DefaultAtom::Weight => 58,
+            DefaultAtom::PointSize => 59,
+            DefaultAtom::Resolution => 60,
+            DefaultAtom::Copyright => 61,
+            DefaultAtom::Notice => 62,
+            DefaultAtom::FontName => 63,
+            DefaultAtom::FamilyName => 64,
+            DefaultAtom::FullName => 65,
+            DefaultAtom::CapHeight => 66,
+            DefaultAtom::WmClass => 67,
+            DefaultAtom::WmTransientFor => 68
+        }
+    }
+}
+
 //
 //
 //
@@ -2755,6 +3007,17 @@ pub enum WindowValue {
     DoNotPropagateMask(u32),
     Colormap(u32),
     Cursor(u32)
+}
+
+#[derive(Debug)]
+pub enum WindowConfigureValue {
+    X(i16),
+    Y(i16),
+    Width(u16),
+    Height(u16),
+    BorderWidth(u16),
+    Sibling(u32),
+    StackMode(StackMode)
 }
 
 #[derive(Debug)]
@@ -2846,6 +3109,32 @@ impl Value for WindowValue {
             &WindowValue::DoNotPropagateMask(val) => client.write_val_u32(val),
             &WindowValue::Colormap(val) => client.write_val_u32(val),
             &WindowValue::Cursor(val) => client.write_val_u32(val)
+        }
+    }
+}
+
+impl Value for WindowConfigureValue {
+    fn get_mask(&self) -> u32 {
+        match self {
+            &WindowConfigureValue::X(_) => 0x0001,
+            &WindowConfigureValue::Y(_) => 0x0002,
+            &WindowConfigureValue::Width(_) => 0x0004,
+            &WindowConfigureValue::Height(_) => 0x0008,
+            &WindowConfigureValue::BorderWidth(_) => 0x0020,
+            &WindowConfigureValue::Sibling(_) => 0x0040,
+            &WindowConfigureValue::StackMode(_) => 0x0080
+        }
+    }
+
+    fn write(&self, client: &mut XClient) {
+        match self {
+            &WindowConfigureValue::X(val) => client.write_val_i16(val),
+            &WindowConfigureValue::Y(val) => client.write_val_i16(val),
+            &WindowConfigureValue::Width(val) => client.write_val_u16(val),
+            &WindowConfigureValue::Height(val) => client.write_val_u16(val),
+            &WindowConfigureValue::BorderWidth(val) => client.write_val_u16(val),
+            &WindowConfigureValue::Sibling(val) => client.write_val_u32(val),
+            &WindowConfigureValue::StackMode(ref val) => client.write_val_u8(val.val())
         }
     }
 }

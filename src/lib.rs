@@ -472,7 +472,7 @@ impl XClient { // This is actually a pretty nice feature for organization
             WindowInputType::InputOnly => 2
         });
         self.write_u32(window.visual_id);
-        self.write_values(&window.values);
+        self.write_values(&window.values, 32);
 
         self.write_request();
     }
@@ -484,7 +484,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_pad(1);
         self.write_u16(3 + values.len() as u16); // data length
         self.write_u32(wid);
-        self.write_values(&values);
+        self.write_values(&values, 32);
 
         self.write_request();
     }
@@ -583,12 +583,12 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 
     /** Tells the X Server to configure a window */
-    pub fn configure_window(&mut self, wid: u32, values: &Vec<WindowValue>) {
+    pub fn configure_window(&mut self, wid: u32, values: &Vec<WindowConfigureValue>) {
         self.write_u8(protocol::OP_CONFIGURE_WINDOW);
         self.write_pad(1);
         self.write_u16(3 + values.len() as u16);
         self.write_u32(wid);
-        self.write_values(&values);
+        self.write_values(&values, 16);
 
         self.write_request();
     }
@@ -704,6 +704,8 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u32(wid);
         self.write_u32(property);
         self.write_u32(ptype);
+        self.write_u32(long_offset);
+        self.write_u32(long_length);
 
         self.write_sequence(ServerReplyType::GetProperty)
     }
@@ -1581,7 +1583,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u16(4 + gc.values.len() as u16);
         self.write_u32(gc.gcid);
         self.write_u32(gc.drawable);
-        self.write_values(&gc.values);
+        self.write_values(&gc.values, 32);
 
         self.write_request();
     }
@@ -1592,7 +1594,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_pad(1);
         self.write_u16(3 + values.len() as u16);
         self.write_u32(gcid);
-        self.write_values(&values);
+        self.write_values(&values, 32);
 
         self.write_request();
     }
@@ -2262,7 +2264,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u8(protocol::OP_CHANGE_KEYBOARD_CONTROL);
         self.write_pad(1);
 		let pad = self.write_dynamic_len(2, values.len() * 4);
-		self.write_values(&values);
+		self.write_values(&values, 32);
 		self.write_pad_op(pad);
 
         self.write_request();
@@ -2526,7 +2528,7 @@ impl XBufferedWriter for XClient {
             return 0;
         } else {
             self.write_u16(base + len as u16 / 4 + 1);
-            return len % 4;
+            return 4 - len % 4;
         }
     }
 
@@ -2699,7 +2701,7 @@ impl XBufferedWriter for XClient {
     /**
      * Writes a bitmap and values to the buffer.
      */
-    fn write_values<T: Value>(&mut self, values: &Vec<T>) {
+    fn write_values<T: Value>(&mut self, values: &Vec<T>, mask_size: u8) {
         let mut value_mask: u32 = 0x0;
         let mut order: Vec<usize> = Vec::with_capacity(values.len());
 
@@ -2722,7 +2724,18 @@ impl XBufferedWriter for XClient {
             }
         }
 
-        self.write_u32(value_mask);
+        match mask_size {
+            8 => {
+                self.write_u8(value_mask as u8);
+                self.write_pad(3)
+            },
+            16 => {
+                self.write_u16(value_mask as u16);
+                self.write_pad(2)
+            },
+            32 => self.write_u32(value_mask as u32),
+            _ => panic!("Invalid mask size for write_values. Expected 8, 16, or 32 (bits).")
+        };
 
         for i in order.iter() {
             values[*i].write(self);
