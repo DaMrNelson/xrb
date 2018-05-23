@@ -56,3 +56,4 @@ Note: This includes the progress notes for XRB and T4Lwm
     - Work on the actual window manager. Get the a window reparented with a red bar at the top, wohoo!!!!!
         - This is super useful for debugging all my stuff and making useful bindings too, as I am getting it all to work well while making the manager
         - Fixed the way I was doing padding. Was using modulo wrong, oops
+        - Weird that even though there is a list of pre-defined atoms in the spec the atom for window name for some applications is not in it
