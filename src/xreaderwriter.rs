@@ -22,8 +22,8 @@ pub trait XBufferedWriter {
     fn write_i32(&mut self, input: i32);
     fn write_u32(&mut self, input: u32);
     fn write_str(&mut self, input: &str);
-    fn write_mask_u16(&mut self, input: Vec<u16>);
-    fn write_mask_u32(&mut self, input: Vec<u32>);
+    fn write_mask_u16(&mut self, input: &Vec<u16>);
+    fn write_mask_u32(&mut self, input: &Vec<u32>);
     fn write_val_bool(&mut self, input: bool);
     fn write_val_u8(&mut self, input: u8);
     fn write_val_i16(&mut self, input: i16);
@@ -209,11 +209,7 @@ impl XReadHelper {
             32 => len * 4,
             _ => return None
         };
-        if len == 0 {
-            len = bytes_after;
-        }
         let value = self.read_raw(len as usize);
-        self.read_pad(bytes_after as usize);
         Some(ServerReply::GetProperty { vtype, value })
     }
 

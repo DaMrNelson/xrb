@@ -768,12 +768,12 @@ impl XClient { // This is actually a pretty nice feature for organization
      * `destination` = 0 = PointerWindow
      * `destination` = 1 = InputFocus
      */
-    pub fn send_event(&mut self, event: &ServerEvent, propagate: bool, destination: u32, events: &Vec<Event>) {
+    pub fn send_event(&mut self, event: &ServerEvent, propagate: bool, destination: u32, target_mask: &Vec<u32>) {
         self.write_u8(protocol::OP_SEND_EVENT);
         self.write_bool(propagate);
         self.write_u16(11);
         self.write_u32(destination);
-        self.write_mask_u32(events.iter().map(|val| val.val()).collect());
+        self.write_mask_u32(&target_mask);
 
         // Write body
         let seq = self.current_sequence;
@@ -900,7 +900,7 @@ impl XClient { // This is actually a pretty nice feature for organization
                 self.write_i16(*root_y);
                 self.write_i16(*event_x);
                 self.write_i16(*event_y);
-                self.write_mask_u16(state.iter().map(|val| val.val()).collect());
+                self.write_mask_u16(&state.iter().map(|val| val.val()).collect());
                 self.write_u8(mode.val());
                 self.write_u8(
                     if *same_screen && *focus {
@@ -926,7 +926,7 @@ impl XClient { // This is actually a pretty nice feature for organization
                 self.write_i16(*root_y);
                 self.write_i16(*event_x);
                 self.write_i16(*event_y);
-                self.write_mask_u16(state.iter().map(|val| val.val()).collect());
+                self.write_mask_u16(&state.iter().map(|val| val.val()).collect());
                 self.write_u8(mode.val());
                 self.write_u8(
                     if *same_screen && *focus {
@@ -1089,7 +1089,7 @@ impl XClient { // This is actually a pretty nice feature for organization
                 self.write_u16(*width);
                 self.write_u16(*height);
                 self.write_u16(*border_width);
-                self.write_mask_u16(values.iter().map(|val| val.val()).collect());
+                self.write_mask_u16(&values.iter().map(|val| val.val()).collect());
                 self.write_pad(4);
             },
             ServerEvent::GravityNotify { event, window, x, y } => {
@@ -1201,6 +1201,9 @@ impl XClient { // This is actually a pretty nice feature for organization
                 self.write_pad(25);
             }
         };
+
+        // Flush
+        self.write_request();
     }
 
     /**
@@ -1214,7 +1217,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_bool(owner_events);
         self.write_u16(6);
         self.write_u32(grab_window);
-        self.write_mask_u16(events.iter().map(|val| val.val()).collect());
+        self.write_mask_u16(&events.iter().map(|val| val.val()).collect());
         self.write_u8(pointer_mode.val());
         self.write_u8(keyboard_mode.val());
         self.write_u32(confine_to);
@@ -1249,14 +1252,14 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_bool(owner_events);
         self.write_u16(6);
         self.write_u32(grab_window);
-        self.write_mask_u16(events.iter().map(|val| val.val()).collect());
+        self.write_mask_u16(&events.iter().map(|val| val.val()).collect());
         self.write_u8(pointer_mode.val());
         self.write_u8(keyboard_mode.val());
         self.write_u32(confine_to);
         self.write_u32(cursor);
         self.write_u8(button);
         self.write_pad(1);
-        self.write_mask_u16(modifiers.iter().map(|val| val.val()).collect());
+        self.write_mask_u16(&modifiers.iter().map(|val| val.val()).collect());
 
         self.write_request();
     }
@@ -1271,7 +1274,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u8(button);
         self.write_u16(3);
         self.write_u32(grab_window);
-        self.write_mask_u16(modifiers.iter().map(|val| val.val()).collect());
+        self.write_mask_u16(&modifiers.iter().map(|val| val.val()).collect());
         self.write_pad(2);
 
         self.write_request();
@@ -1288,7 +1291,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u16(4);
         self.write_u32(cursor);
         self.write_u32(time);
-        self.write_mask_u16(events.iter().map(|val| val.val()).collect());
+        self.write_mask_u16(&events.iter().map(|val| val.val()).collect());
         self.write_pad(2);
 
         self.write_request();
@@ -1334,7 +1337,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_bool(owner_events);
         self.write_u16(4);
         self.write_u32(grab_window);
-        self.write_mask_u16(modifiers.iter().map(|val| val.val()).collect());
+        self.write_mask_u16(&modifiers.iter().map(|val| val.val()).collect());
         self.write_char(key);
         self.write_u8(pointer_mode.val());
         self.write_u8(keyboard_mode.val());
@@ -1353,7 +1356,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_char(key);
         self.write_u16(3);
         self.write_u32(grab_window);
-        self.write_mask_u16(modifiers.iter().map(|val| val.val()).collect());
+        self.write_mask_u16(&modifiers.iter().map(|val| val.val()).collect());
         self.write_pad(2);
 
         self.write_request();
@@ -1606,7 +1609,7 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_u16(4);
         self.write_u32(src_gc);
         self.write_u32(dst_gc);
-        self.write_mask_u32(values_to_copy.iter().map(|val| val.val()).collect());
+        self.write_mask_u32(&values_to_copy.iter().map(|val| val.val()).collect());
 
         self.write_request();
     }
@@ -2617,7 +2620,7 @@ impl XBufferedWriter for XClient {
     /**
      * Writes a mask based off some u16 values.
      */
-    fn write_mask_u16(&mut self, input: Vec<u16>) {
+    fn write_mask_u16(&mut self, input: &Vec<u16>) {
         let mut mask = 0;
 
         for val in input.iter() {
@@ -2630,7 +2633,7 @@ impl XBufferedWriter for XClient {
     /**
      * Writes a mask based off some u32 values.
      */
-    fn write_mask_u32(&mut self, input: Vec<u32>) {
+    fn write_mask_u32(&mut self, input: &Vec<u32>) {
         let mut mask = 0;
 
         for val in input.iter() {

@@ -1031,18 +1031,28 @@ impl Window {
     }
 
     pub fn get_string_sync(&mut self, client: &mut XClient, property: u32, max_len: u32) -> Option<String> {
-        match self.get_property_sync(client, property, DefaultAtom::String.val(), false, 0, max_len) {
+        match self.get_property_sync(client, property, 0, false, 0, max_len) { // 0 = any type, because sometimes strings aren't strings...
             Ok((vtype, value)) => {
-                if vtype != DefaultAtom::String.val() {
-                    None
-                } else {
-                    match String::from_utf8(value) {
-                        Ok(val) => Some(val),
-                        Err(_) => None
-                    }
+                match String::from_utf8(value) {
+                    Ok(val) => Some(val),
+                    Err(err) => None
                 }
             },
             Err(val) => None
+        }
+    }
+
+    pub fn get_wm_name_sync(&mut self, client: &mut XClient, ATOM__NET_WM_NAME: u32) -> String {
+        let name = match self.get_string_sync(client, ATOM__NET_WM_NAME, 200) {
+            Some(name) => if name.len() == 0 { None } else { Some(name) }
+            None => None
+        };
+        match name {
+            Some(name) => name,
+            None => match self.get_string_sync(client, DefaultAtom::WmName.val(), 200) {
+                Some(name) => name,
+                None => String::from("")
+            }
         }
     }
 
@@ -1125,6 +1135,14 @@ pub struct Pixmap {
     pub drawable: u32, // Window or Pixmap ID
     pub width: u16,
     pub height: u16
+}
+impl Pixmap {
+    pub fn create(client: &mut XClient, drawable: u32, depth: u8, width: u16, height: u16) -> Pixmap {
+        let pid = client.new_resource_id();
+        let pixmap = Pixmap { depth, pid, drawable, width, height };
+        client.create_pixmap(&pixmap);
+        pixmap
+    }
 }
 
 impl Drawable for Pixmap {
