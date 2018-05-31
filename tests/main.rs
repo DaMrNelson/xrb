@@ -124,8 +124,8 @@ mod tests {
                 ServerResponse::Reply(reply, sequence_number) => {
                     println!("Got reply {}: {:?}", sequence_number, reply);
                 },
-                ServerResponse::Event(event, sequence_number) => {
-                    println!("Got event {}: {:?}", sequence_number, event);
+                ServerResponse::Event(event, sequence_number, generated) => {
+                    println!("Got event {} (generated: {}): {:?}", sequence_number, generated, event);
                 }
             }
         }

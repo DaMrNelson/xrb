@@ -204,7 +204,9 @@ impl XClient {
                 loop {
                     // Read header
                     reader.prep_read(32); // All are *at least* 32 bytes
-                    let opcode = reader.read_u8();
+                    let opcode_original = reader.read_u8();
+                    let opcode = opcode_original & 0b0111111;
+                    let generated = opcode_original & 0b10000000 == 0x1;
                     let detail = reader.read_u8();
                     let sequence_number = reader.read_u16();
 
@@ -311,12 +313,15 @@ impl XClient {
                                     protocol::REPLY_COLORMAP_NOTIFY => reader.read_colormap_notify(),
                                     protocol::REPLY_CLIENT_MESSAGE => reader.read_client_message(detail),
                                     protocol::REPLY_MAPPING_NOTIFY => reader.read_mapping_notify(),
-                                    _ => continue
+                                    _ => {
+                                        println!("WARNING: Server sent unknown opcode {}", opcode);
+                                        continue;
+                                    }
                                 } {
                                     Some(event) => event,
                                     None => continue
                                 }
-                            , sequence_number)
+                            , sequence_number, generated)
                         }
                     };
 

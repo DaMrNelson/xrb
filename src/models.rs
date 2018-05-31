@@ -635,7 +635,7 @@ pub enum ServerEvent {
 pub enum ServerResponse {
     Error(ServerError, u16),
     Reply(ServerReply, u16),
-    Event(ServerEvent, u16)
+    Event(ServerEvent, u16, bool)
 }
 
 //
@@ -1600,7 +1600,7 @@ impl DeviceEvent {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum KeyButton {
     Shift,
     Lock,
