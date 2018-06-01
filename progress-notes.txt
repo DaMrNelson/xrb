@@ -57,3 +57,9 @@ Note: This includes the progress notes for XRB and T4Lwm
         - This is super useful for debugging all my stuff and making useful bindings too, as I am getting it all to work well while making the manager
         - Fixed the way I was doing padding. Was using modulo wrong, oops
         - Weird that even though there is a list of pre-defined atoms in the spec the atom for window name for some applications is not in it
+        - Weird that you have to send and react to Expose's for things to not get fucked up
+    - Worked on tiling
+        - Took a while to figure out how I was going to do it, and to make it work with Rust
+            - Code would have worked in any other OOP language, but does not in Rust
+            - Thats OK tho, I figured it out by not using Enums and properties for the first and second Tiled windows and instead used a Vector with at most 2 elements
+        - Made tiling work of currently focused window (surprisingly hard)
