@@ -38,8 +38,8 @@ pub struct ConnectInfo {
     pub bitmap_format_bit_order: BitOrder,
     pub bitmap_format_scanline_unit: u8,
     pub bitmap_format_scanline_pad: u8,
-    pub min_keycode: char,
-    pub max_keycode: char,
+    pub min_keycode: u8,
+    pub max_keycode: u8,
     pub vendor: String,
     pub formats: Vec<Format>,
     pub screens: Vec<Screen>
@@ -63,8 +63,8 @@ impl ConnectInfo {
             bitmap_format_bit_order: BitOrder::LeastSignificant,
             bitmap_format_scanline_unit: 0,
             bitmap_format_scanline_pad: 0,
-            min_keycode: 0 as char,
-            max_keycode: 0 as char,
+            min_keycode: 0,
+            max_keycode: 0,
             vendor: String::new(),
             formats: vec![],
             screens: vec![]
@@ -233,7 +233,7 @@ pub enum ServerReply {
         revert_to: InputFocusRevert
     },
     QueryKeymap {
-        keys: Vec<char>
+        keys: Vec<u8>
     },
     QueryFont {
         // TODO
@@ -365,7 +365,7 @@ pub enum ServerReply {
         status: SetModifierMappingStatus
     },
     GetModifierMapping {
-        key_codes: Vec<char>
+        key_codes: Vec<u8>
     }
 }
 
@@ -477,7 +477,7 @@ pub enum ServerEvent {
         mode: FocusMode
     },
     KeymapNotify {
-        // TODO: Implement it
+        keys: Vec<u8>
     },
     Expose {
         window: u32,
@@ -626,7 +626,7 @@ pub enum ServerEvent {
     },
     MappingNotify {
         request: MappingType,
-        first_keycode: char,
+        first_keycode: u8,
         count: u8
     }
 }
@@ -3078,7 +3078,7 @@ pub enum KeyboardControlValue {
     BellDuration(i16),
     Led(u8),
     LedMode(KeyboardControlLedMode),
-    Key(char),
+    Key(u8),
     AutoRepeatMode(KeyboardControlAutoRepeatMode)
 }
 
@@ -3242,7 +3242,7 @@ impl Value for KeyboardControlValue {
             &KeyboardControlValue::BellDuration(val) => client.write_i16(val),
             &KeyboardControlValue::Led(val) => client.write_u8(val),
             &KeyboardControlValue::LedMode(ref val) => client.write_u8(val.val()),
-            &KeyboardControlValue::Key(val) => client.write_char(val),
+            &KeyboardControlValue::Key(val) => client.write_u8(val),
             &KeyboardControlValue::AutoRepeatMode(ref val) => client.write_u8(val.val())
         };
     }

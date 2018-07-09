@@ -30,7 +30,6 @@ See tests/main.rs for some example usage.
     - Async versions for functions with replies (ie query_font(...), font.query(...))
         - So they don't have to manually call wait_for_response(seq)
     - Some skipped stuff
-        - read_keymap_notify
         - set_font_path
         - change_keyboard_mapping
         - QueryFont response (enum and reading)

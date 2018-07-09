@@ -312,7 +312,7 @@ impl XReadHelper {
     pub fn read_query_keymap_reply(&mut self) -> Option<ServerReply> {
         let mut keys = Vec::with_capacity(32);
         for _ in 0..32 {
-            keys.push(self.read_u8() as char);
+            keys.push(self.read_u8());
         }
         Some(ServerReply::QueryKeymap { keys })
     }
@@ -642,7 +642,7 @@ impl XReadHelper {
         self.read_pad(24);
         let mut key_codes = Vec::with_capacity((len * 8) as usize);
         for _ in 0..len*8 {
-            key_codes.push(self.read_char());
+            key_codes.push(self.read_u8());
         }
         Some(ServerReply::GetModifierMapping { key_codes })
     }
@@ -814,9 +814,13 @@ impl XReadHelper {
     }
 
     /** Reads an event from the server (assumes first byte read) */
-    #[allow(unused_variables)]
-    pub fn read_keymap_notify(&mut self, detail: u8) -> Option<ServerEvent> {
-        panic!("Not implemented yet. Go write an Issue on GitHub please."); // Going to need some research. Doesn't have have a sequence number... is this just 31 bytes?
+    pub fn read_keymap_notify(&mut self, sequence_number: u16, detail: u8) -> Option<ServerEvent> {
+        let mut keys = Vec::with_capacity(31);
+        keys.push(detail);
+        keys.push((sequence_number & 0xFF) as u8);
+        keys.push((sequence_number >> 8) as u8);
+        keys.extend(self.read_raw(28));
+        return Some(ServerEvent::KeymapNotify { keys });
     }
 
     /** Reads an event from the server (assumes first byte read) */
@@ -1077,7 +1081,7 @@ impl XReadHelper {
             Some(x) => x,
             None => return None
         };
-        let first_keycode = self.read_char();
+        let first_keycode = self.read_u8();
         let count = self.read_u8();
         self.read_pad(25);
         Some(ServerEvent::MappingNotify { request, first_keycode, count })

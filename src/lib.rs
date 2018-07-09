@@ -116,8 +116,8 @@ impl XClient {
             };
             self.info.bitmap_format_scanline_unit = reader.read_u8();
             self.info.bitmap_format_scanline_pad = reader.read_u8();
-            self.info.min_keycode = reader.read_char();
-            self.info.max_keycode = reader.read_char();
+            self.info.min_keycode = reader.read_u8();
+            self.info.max_keycode = reader.read_u8();
             reader.read_pad(4);
 
             self.info.vendor = reader.read_str(vendor_length as usize);
@@ -289,7 +289,7 @@ impl XClient {
                                     protocol::REPLY_LEAVE_NOTIFY => reader.read_leave_notify(detail),
                                     protocol::REPLY_FOCUS_IN => reader.read_focus_in(detail),
                                     protocol::REPLY_FOCUS_OUT => reader.read_focus_out(detail),
-                                    protocol::REPLY_KEYMAP_NOTIFY => reader.read_keymap_notify(detail),
+                                    protocol::REPLY_KEYMAP_NOTIFY => reader.read_keymap_notify(sequence_number, detail), // The one special case
                                     protocol::REPLY_EXPOSE => reader.read_expose(),
                                     protocol::REPLY_GRAPHICS_EXPOSURE => reader.read_graphics_exposure(),
                                     protocol::REPLY_NO_EXPOSURE => reader.read_no_exposure(),
@@ -961,8 +961,13 @@ impl XClient { // This is actually a pretty nice feature for organization
                 self.write_u8(mode.val());
                 self.write_pad(23);
             },
-            ServerEvent::KeymapNotify { } => {
-                panic!("Not implemented yet"); // TODO: Do this
+            ServerEvent::KeymapNotify { keys } => {
+                if keys.len() == 31 {
+                    self.write_u8(protocol::REPLY_KEYMAP_NOTIFY);
+                    self.write_raw(keys);
+                } else {
+                    panic!("keys should be exactly 31 bytes.");
+                }
             },
             ServerEvent::Expose { window, x, y, width, height, count } => {
                 self.write_u8(protocol::REPLY_EXPOSE);
@@ -1201,7 +1206,7 @@ impl XClient { // This is actually a pretty nice feature for organization
                 self.write_pad(1);
                 self.write_u16(seq);
                 self.write_u8(request.val());
-                self.write_char(*first_keycode);
+                self.write_u8(*first_keycode);
                 self.write_u8(*count);
                 self.write_pad(25);
             }
@@ -1337,13 +1342,13 @@ impl XClient { // This is actually a pretty nice feature for organization
      * `modifiers` = 0x8000 = any modifier
      * `key` = 0 = any key
      */
-    pub fn grab_key(&mut self, key: char, grab_window: u32, pointer_mode: &PointerMode, keyboard_mode: &KeyboardMode, modifiers: &Vec<Key>, owner_events: bool) {
+    pub fn grab_key(&mut self, key: u8, grab_window: u32, pointer_mode: &PointerMode, keyboard_mode: &KeyboardMode, modifiers: &Vec<Key>, owner_events: bool) {
         self.write_u8(protocol::OP_GRAB_KEY);
         self.write_bool(owner_events);
         self.write_u16(4);
         self.write_u32(grab_window);
         self.write_mask_u16(&modifiers.iter().map(|val| val.val()).collect());
-        self.write_char(key);
+        self.write_u8(key);
         self.write_u8(pointer_mode.val());
         self.write_u8(keyboard_mode.val());
         self.write_pad(3);
@@ -1356,9 +1361,9 @@ impl XClient { // This is actually a pretty nice feature for organization
      * `key` = 0 = any key
      * `modifiers` = 0x8000 = any modifier
      */
-    pub fn ungrab_key(&mut self, key: char, grab_window: u32, modifiers: &Vec<Key>) {
+    pub fn ungrab_key(&mut self, key: u8, grab_window: u32, modifiers: &Vec<Key>) {
         self.write_u8(protocol::OP_UNGRAB_KEY);
-        self.write_char(key);
+        self.write_u8(key);
         self.write_u16(3);
         self.write_u32(grab_window);
         self.write_mask_u16(&modifiers.iter().map(|val| val.val()).collect());
@@ -2248,7 +2253,7 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 
     /** Tells the X Server to [TODO] */
-    pub fn change_keyboard_mapping(&mut self, first: char, keysyms: &Vec<u32>) {
+    pub fn change_keyboard_mapping(&mut self, first: u8, keysyms: &Vec<u32>) {
         self.write_u8(protocol::OP_CHANGE_KEYBOARD_MAPPING);
         panic!("Not implemented yet");
 
@@ -2256,11 +2261,11 @@ impl XClient { // This is actually a pretty nice feature for organization
     }
 
     /** Tells the X Server to [TODO] */
-    pub fn get_keyboard_mapping(&mut self, first: char, count: u8) -> u16 {
+    pub fn get_keyboard_mapping(&mut self, first: u8, count: u8) -> u16 {
         self.write_u8(protocol::OP_GET_KEYBOARD_MAPPING);
         self.write_pad(1);
 		self.write_u16(2);
-		self.write_char(first);
+		self.write_u8(first);
 		self.write_u8(count);
 		self.write_pad(2);
 
@@ -2450,7 +2455,7 @@ impl XClient { // This is actually a pretty nice feature for organization
      * Tells the X Server to [TODO]
      * `keycodes` must have 255 or less elements
      */
-    pub fn set_modifier_mapping(&mut self, keycodes: &Vec<char>) -> u16 {
+    pub fn set_modifier_mapping(&mut self, keycodes: &Vec<u8>) -> u16 {
         self.write_u8(protocol::OP_SET_MODIFIER_MAPPING);
         self.write_u8(keycodes.len() as u8);
 		let pad = self.write_dynamic_len(1, keycodes.len() * 8);
