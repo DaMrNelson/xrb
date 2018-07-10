@@ -1550,10 +1550,20 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_sequence(ServerReplyType::ListFontsWithInfo)
     }
 
-    /** Tells the X Server to [TODO] */
-    pub fn set_font_path(&mut self) {
+    /**
+     * Tells the X Server to sent the font paths.
+     * As the formatting of paths is OS dependant, you must also provide the number of strings in the path.
+     * TODO: Create some other methods that 
+     */
+    pub fn set_font_path(&mut self, paths: &str, count: u16) {
         self.write_u8(protocol::OP_SET_FONT_PATH);
-        panic!("Not implemented yet"); // TODO
+        self.write_pad(1);
+        let pad = self.write_dynamic_len(2, paths.len());
+        self.write_u16(count);
+        self.write_pad(2);
+        self.write_str(paths);
+        self.write_pad_op(pad);
+
         self.write_request();
     }
 

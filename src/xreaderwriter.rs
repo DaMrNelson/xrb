@@ -48,6 +48,7 @@ pub trait XBufferedReader {
     fn read_str(&mut self, len: usize) -> String;
     fn read_raw(&mut self, len: usize) -> Vec<u8>;
     fn read_raw_buf(&mut self, buf: &mut [u8]);
+    fn read_raw_remaining(&mut self) -> Vec<u8>;
 }
 
 /**
@@ -399,17 +400,18 @@ impl XReadHelper {
     pub fn read_get_font_path_reply(&mut self) -> Option<ServerReply> {
         let count = self.read_u16();
         self.read_pad(22);
-        let mut path = Vec::with_capacity(count as usize);
-        for _ in 0..count {
-            let len = self.read_u8();
-            path.push(self.read_str(len as usize));
+        match String::from_utf8(self.read_raw_remaining()) {
+            Ok(path) => Some(ServerReply::GetFontPath { path, count }),
+            Err(_) => None
         }
-        Some(ServerReply::GetFontPath { path })
     }
 
     /** Reads TODO */
     pub fn read_get_image_reply(&mut self, depth: u8) -> Option<ServerReply> {
-        panic!("TODO: GetImage reply");
+        let visual = self.read_u32();
+        self.read_pad(20);
+        let data = self.read_raw_remaining();
+        Some(ServerReply::GetImage { visual, depth, data })
     }
 
     /** Reads TODO */
@@ -1192,12 +1194,7 @@ impl XBufferedReader for XReadHelper {
      * Reads raw bytes from the buffer.
      */
     fn read_raw(&mut self, len: usize) -> Vec<u8> {
-        let mut x = Vec::with_capacity(len);
-
-        for i in self.pos..self.pos + len {
-            x.push(self.buf[i]);
-        }
-
+        let x = self.buf[self.pos..self.pos + len].to_vec();
         self.pos += len;
         x
     }
@@ -1211,5 +1208,14 @@ impl XBufferedReader for XReadHelper {
         }
 
         self.pos += buf.len();
+    }
+
+    /**
+     * Reads raw bytes until the end of the buffer.
+     */
+    fn read_raw_remaining(&mut self) -> Vec<u8> {
+        let x = self.buf[self.pos..self.buf.len()].to_vec();
+        self.pos = self.buf.len();
+        x
     }
 }

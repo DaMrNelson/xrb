@@ -30,12 +30,14 @@ See tests/main.rs for some example usage.
     - Async versions for functions with replies (ie query_font(...), font.query(...))
         - So they don't have to manually call wait_for_response(seq)
     - Some skipped stuff
-        - set_font_path
+        - [TEST IT] set_font_path
+        - [TEST IT] read_get_font_path_reply
+        - set_font_path aliases for different type of operating systems
         - change_keyboard_mapping
         - QueryFont response (enum and reading)
         - GetKeyboardMapping response
         - GetKeyboardControl response (I have some bindings, but I need to look into the spec to see what this is supposed to do)
-        - GetImage response (how do you know when you have read it all?)
+        - [TEST IT] GetImage response (how do you know when you have read it all?)
         - Should GetKeyboardControl response's auto-repeats list be an enum?
     - Multithread usage?
         - Thread lock when creating new resource IDs. Or maybe just thread lock the entire thing? Idk yet.

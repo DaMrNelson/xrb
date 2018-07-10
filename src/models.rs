@@ -269,7 +269,8 @@ pub enum ServerReply {
     },
     ListFontsWithInfoEnd, // End marker for ListFontsWithInfoEntry
     GetFontPath {
-        path: Vec<String>
+        path: String,
+        count: u16
     },
     GetImage {
         visual: u32, // 0 = none
