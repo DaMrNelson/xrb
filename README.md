@@ -34,7 +34,7 @@ See tests/main.rs for some example usage.
         - [TEST IT] read_get_font_path_reply
         - set_font_path aliases for different type of operating systems
         - [TEST IT] change_keyboard_mapping
-        - QueryFont response (enum and reading)
+        - [TEST IT] QueryFont response (enum and reading)
         - GetKeyboardMapping response
         - GetKeyboardControl response (I have some bindings, but I need to look into the spec to see what this is supposed to do)
         - [TEST IT] GetImage response (how do you know when you have read it all?)
