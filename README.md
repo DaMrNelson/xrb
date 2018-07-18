@@ -26,22 +26,28 @@ See tests/main.rs for some example usage.
     - Responds with replies, errors, and events
 
 # TODO
+    - Extensions
+        - XKB
+        - Xinput 2
+        - Composite
+        - RandR
+        - Xinerama
+        - SYNC
     - Map functions to objects (ie `window.destroy()` instead of `client.destroy_window(window.wid)`)
     - Async versions for functions with replies (ie query_font(...), font.query(...))
         - So they don't have to manually call wait_for_response(seq)
-    - Some skipped stuff
-        - [TEST IT] set_font_path
-        - [TEST IT] read_get_font_path_reply
-        - set_font_path aliases for different type of operating systems
-        - [TEST IT] change_keyboard_mapping
-        - [TEST IT] QueryFont response (enum and reading)
-        - [TEST IT] GetKeyboardMapping response
-        - [TEST IT] GetKeyboardControl response (I have some bindings, but I need to look into the spec to see what this is supposed to do)
-        - [TEST IT] GetImage response (how do you know when you have read it all?)
     - Multithread usage?
         - Thread lock when creating new resource IDs. Or maybe just thread lock the entire thing? Idk yet.
     - Allow re-use of used resource IDs
     - Don't unwrap and panic everywhere
+    - Test functions
+        - All of them, but specially at least these ones:
+        - change_keyboard_mapping
+        - QueryFont response (enum and reading)
+        - GetKeyboardMapping response
+        - GetKeyboardControl response (I have some bindings, but I need to look into the spec to see what this is supposed to do)
+        - GetImage response (how do you know when you have read it all?)
+    - set_font_path aliases for different type of operating systems
     - Write some examples
     - Write some docs
         - Write manual docs for the important stuff
