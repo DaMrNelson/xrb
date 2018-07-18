@@ -574,8 +574,22 @@ impl XReadHelper {
     }
 
     /** Reads TODO */
-    pub fn read_get_keyboard_mapping_reply(&mut self, count: u8) -> Option<ServerReply> {
-        panic!("TODO: GetKeyboardMapping reply");
+    pub fn read_get_keyboard_mapping_reply(&mut self, keysyms_count: u8) -> Option<ServerReply> {
+        self.read_pad(24);
+        let keycode_count = (self.buf.len() - self.pos) / keysyms_count as usize; // Because we don't know what value of `m` was passed
+        let mut mapping = Vec::with_capacity(keycode_count);
+        
+        for i in 0..keycode_count {
+            let mut vec = Vec::with_capacity(keysyms_count as usize);
+
+            for j in 0..keysyms_count {
+                vec.push(self.read_u32());
+            }
+
+            mapping.push(vec);
+        }
+
+        Some(ServerReply::GetKeyboardMapping { mapping })
     }
 
     /** Reads TODO */

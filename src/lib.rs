@@ -2262,17 +2262,15 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_sequence(ServerReplyType::ListExtensions)
     }
 
-    /** Tells the X Server to [TODO]
+    /** Sets the keyboard mapping for the given range.
      * Keysym reference: https://www.x.org/releases/X11R7.7/doc/xproto/x11protocol.html#keysym_encoding
-     * 
-     * `count` must be a multiple of `keysyms.len()`.
      * 
      * Args:
      *   - first: The first keycode
      *   - count: The number of key-codes following
      * 
      * Returns Some(()) if `count` is a multiple of `keysyms.len()` and the given first key-code is valid, None if not.
-    */
+     */
     pub fn change_keyboard_mapping(&mut self, first: u8, count: u8, keysyms: &Vec<u32>) -> Option<()> {
         if count as usize % keysyms.len() != 0 || first < 7 {
             return None;
@@ -2293,7 +2291,10 @@ impl XClient { // This is actually a pretty nice feature for organization
         return Some(());
     }
 
-    /** Tells the X Server to [TODO] */
+    /** Asks the X server for the keyboard mapping in the given range.
+     * 
+     * Response: First entry is the first key-code given, incrementing up by 1 key-code.
+     */
     pub fn get_keyboard_mapping(&mut self, first: u8, count: u8) -> u16 {
         self.write_u8(protocol::OP_GET_KEYBOARD_MAPPING);
         self.write_pad(1);

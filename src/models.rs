@@ -342,7 +342,7 @@ pub enum ServerReply {
         names: Vec<String>
     },
     GetKeyboardMapping {
-        // TODO
+        mapping: Vec<Vec<u32>> // First entry is the first key-code given, incrementing up by 1 key-code
     },
     GetKeyboardControl {
         global_auto_repeat: KeyboardControlAutoRepeatMode,
