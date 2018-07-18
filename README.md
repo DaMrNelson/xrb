@@ -33,7 +33,7 @@ See tests/main.rs for some example usage.
         - [TEST IT] set_font_path
         - [TEST IT] read_get_font_path_reply
         - set_font_path aliases for different type of operating systems
-        - change_keyboard_mapping
+        - [TEST IT] change_keyboard_mapping
         - QueryFont response (enum and reading)
         - GetKeyboardMapping response
         - GetKeyboardControl response (I have some bindings, but I need to look into the spec to see what this is supposed to do)

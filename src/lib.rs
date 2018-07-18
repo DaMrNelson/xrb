@@ -2262,12 +2262,35 @@ impl XClient { // This is actually a pretty nice feature for organization
         self.write_sequence(ServerReplyType::ListExtensions)
     }
 
-    /** Tells the X Server to [TODO] */
-    pub fn change_keyboard_mapping(&mut self, first: u8, keysyms: &Vec<u32>) {
+    /** Tells the X Server to [TODO]
+     * Keysym reference: https://www.x.org/releases/X11R7.7/doc/xproto/x11protocol.html#keysym_encoding
+     * 
+     * `count` must be a multiple of `keysyms.len()`.
+     * 
+     * Args:
+     *   - first: The first keycode
+     *   - count: The number of key-codes following
+     * 
+     * Returns Some(()) if `count` is a multiple of `keysyms.len()` and the given first key-code is valid, None if not.
+    */
+    pub fn change_keyboard_mapping(&mut self, first: u8, count: u8, keysyms: &Vec<u32>) -> Option<()> {
+        if count as usize % keysyms.len() != 0 || first < 7 {
+            return None;
+        }
+
+        let keysyms_per_keycode = (keysyms.len() / count as usize) as u8;
         self.write_u8(protocol::OP_CHANGE_KEYBOARD_MAPPING);
-        panic!("Not implemented yet");
+        self.write_u8(count);
+        self.write_u16((2 + keysyms.len()) as u16);
+        self.write_u8(keysyms_per_keycode);
+        self.write_pad(2);
+        
+        for keysym in keysyms {
+            self.write_u32(*keysym);
+        }
 
         self.write_request();
+        return Some(());
     }
 
     /** Tells the X Server to [TODO] */
