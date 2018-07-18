@@ -75,7 +75,7 @@ impl ConnectInfo {
 #[derive(Debug)]
 pub struct CharInfo {
     pub left_side_bearing: i16,
-    pub right_side_bearingL: i16,
+    pub right_side_bearing: i16,
     pub character_width: i16,
     pub ascent: i16,
     pub descent: i16,
@@ -236,7 +236,19 @@ pub enum ServerReply {
         keys: Vec<u8>
     },
     QueryFont {
-        // TODO
+        min_bounds: CharInfo,
+        max_bounds: CharInfo,
+        min_char: u16,
+        max_char: u16,
+        default_char: u16,
+        draw_direction: FontDrawDirection,
+        min_byte: u8,
+        max_byte: u8,
+        all_chars_exist: bool,
+        font_asc: u16,
+        font_des: u16,
+        properties: Vec<FontProperty>,
+        infos: Vec<CharInfo>
     },
     QueryTextExtents {
         font_ascent: i16,

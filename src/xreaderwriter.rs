@@ -111,7 +111,7 @@ impl XReadHelper {
     fn read_char_info(&mut self) -> CharInfo {
         return CharInfo {
             left_side_bearing: self.read_i16(),
-            right_side_bearingL: self.read_i16(),
+            right_side_bearing: self.read_i16(),
             character_width: self.read_i16(),
             ascent: self.read_i16(),
             descent: self.read_i16(),
@@ -320,7 +320,44 @@ impl XReadHelper {
 
     /** Reads TODO */
     pub fn read_query_font_reply(&mut self) -> Option<ServerReply> {
-        panic!("TODO: QueryFont reply");
+        // Read static
+        let min_bounds = self.read_char_info();
+        self.read_pad(4);
+        let max_bounds = self.read_char_info();
+        self.read_pad(4);
+        let min_char = self.read_u16();
+        let max_char = self.read_u16();
+        let default_char = self.read_u16();
+        let fontprop_count = self.read_u16();
+        let draw_direction = match self.read_u8() {
+            0 => FontDrawDirection::LeftToRight,
+            1 => FontDrawDirection::RightToLeft,
+            _ => return None
+        };
+        let min_byte = self.read_u8();
+        let max_byte = self.read_u8();
+        let all_chars_exist = self.read_bool();
+        let font_asc = self.read_u16();
+        let font_des = self.read_u16();
+        let charinfo_count = self.read_u32();
+        
+        // Read properties
+        let mut properties = Vec::with_capacity(fontprop_count as usize);
+        for _ in 0..fontprop_count {
+            properties.push(FontProperty {
+                name: self.read_u32(),
+                value: self.read_u32()
+            });
+        }
+
+        // Read character infos
+        let mut infos = Vec::with_capacity(charinfo_count as usize);
+        for _ in 0..charinfo_count {
+            infos.push(self.read_char_info());
+        }
+
+        // Return the result
+        Some(ServerReply::QueryFont { min_bounds, max_bounds, min_char, max_char, default_char, draw_direction, min_byte, max_byte, all_chars_exist, font_asc, font_des, properties, infos })
     }
 
     /** Reads TODO */
