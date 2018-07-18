@@ -36,9 +36,8 @@ See tests/main.rs for some example usage.
         - [TEST IT] change_keyboard_mapping
         - [TEST IT] QueryFont response (enum and reading)
         - [TEST IT] GetKeyboardMapping response
-        - GetKeyboardControl response (I have some bindings, but I need to look into the spec to see what this is supposed to do)
+        - [TEST IT] GetKeyboardControl response (I have some bindings, but I need to look into the spec to see what this is supposed to do)
         - [TEST IT] GetImage response (how do you know when you have read it all?)
-        - Should GetKeyboardControl response's auto-repeats list be an enum?
     - Multithread usage?
         - Thread lock when creating new resource IDs. Or maybe just thread lock the entire thing? Idk yet.
     - Allow re-use of used resource IDs

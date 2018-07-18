@@ -606,7 +606,7 @@ impl XReadHelper {
         self.read_pad(2);
         let mut auto_repeats = Vec::with_capacity(32);
         for _ in 0..32 {
-            auto_repeats.push(self.read_u8()); // TODO: Should this be an enum?
+            auto_repeats.push(self.read_u8());
         }
         Some(ServerReply::GetKeyboardControl { global_auto_repeat, led_mask, key_click_percent, bell_percent, bell_pitch, bell_duration, auto_repeats })
     }
